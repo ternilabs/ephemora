@@ -5,7 +5,7 @@ import type { BootstrapResponse } from '../types/bootstrap'
 export function useBootstrap() {
   return useQuery({
     queryKey: ['bootstrap'],
-    queryFn: () => apiFetch<BootstrapResponse>('/bootstrap'),
+    queryFn: ({ signal }) => apiFetch<BootstrapResponse>('/bootstrap', { signal }),
     staleTime: 30_000,
   })
 }
