@@ -1,13 +1,16 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Center, Container, Loader, Stack, Text } from '@mantine/core'
+import { Button, Center, Container, Loader, Stack, Text } from '@mantine/core'
 import ChatShell from '../components/layout/ChatShell'
 import MessageList from '../components/chat/MessageList'
 import ResetCountdown from '../components/status/ResetCountdown'
 import { useBootstrap } from '../hooks/useBootstrap'
 import { useMessageHistory } from '../hooks/useMessageHistory'
-import type { ChatMessage, MessageRow, ModerationStatus } from '../types/chat'
+import type { ChatMessage, MessageRow } from '../types/chat'
 
 export const Route = createFileRoute('/')({
+  head: () => ({
+    meta: [{ title: 'Ephemora' }],
+  }),
   component: ChatRoute,
 })
 
@@ -35,13 +38,27 @@ function dedupeById(messages: ChatMessage[]): ChatMessage[] {
 export default function ChatRoute() {
   const bootstrap = useBootstrap()
   const historyLimit = bootstrap.data?.limits.historyLimit ?? 50
-  const history = useMessageHistory(historyLimit)
-  const hiddenStatus: ModerationStatus = 'hidden'
+  const history = useMessageHistory(historyLimit, bootstrap.isSuccess)
 
   if (bootstrap.isLoading) {
     return (
       <Center h="100dvh">
         <Loader />
+      </Center>
+    )
+  }
+
+  if (bootstrap.isError) {
+    return (
+      <Center h="100dvh">
+        <Container size="sm">
+          <Stack gap="sm">
+            <Text>Failed to load chat settings.</Text>
+            <Button onClick={() => bootstrap.refetch()} variant="light">
+              Retry
+            </Button>
+          </Stack>
+        </Container>
       </Center>
     )
   }
@@ -52,7 +69,7 @@ export default function ChatRoute() {
   const mapped = rows.map(toChatMessage)
 
   const messages = dedupeById(mapped)
-    .filter((m) => m.moderationStatus !== hiddenStatus)
+    .filter((m) => m.moderationStatus !== 'hidden')
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
   return (
@@ -66,12 +83,19 @@ export default function ChatRoute() {
             <Text>Loading messages…</Text>
           </Stack>
         </Container>
+      ) : history.isError ? (
+        <Container size="sm" py="xl">
+          <Stack gap="sm">
+            <Text>Failed to load messages.</Text>
+            <Button onClick={() => history.refetch()} variant="light">
+              Retry
+            </Button>
+          </Stack>
+        </Container>
       ) : (
         <MessageList
           messages={messages}
-          onLoadMore={() => {
-            void history.fetchNextPage()
-          }}
+          onLoadMore={() => history.fetchNextPage()}
           hasMore={!!history.hasNextPage}
           loadingMore={history.isFetchingNextPage}
         />
