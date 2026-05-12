@@ -5,7 +5,7 @@ import MessageBubble from './MessageBubble'
 
 export default function MessageList(props: {
   messages: ChatMessage[]
-  onLoadMore: () => void | Promise<void>
+  onLoadMore: () => void | Promise<unknown>
   hasMore: boolean
   loadingMore: boolean
 }) {
