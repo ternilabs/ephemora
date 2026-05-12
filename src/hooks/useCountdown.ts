@@ -15,12 +15,13 @@ export function useCountdown(opts: {
   useEffect(() => {
     if (!resetAt) return
     const resetAtMs = new Date(resetAt).getTime()
-    if (Number.isNaN(resetAtMs)) {
-      setSecondsRemaining(0)
-      return
-    }
 
     const tick = () => {
+      if (Number.isNaN(resetAtMs)) {
+        setSecondsRemaining(0)
+        return
+      }
+
       const sec = Math.max(0, Math.floor((resetAtMs - Date.now()) / 1000))
       setSecondsRemaining(sec)
       if (sec === 0 && !firedZeroRef.current) {
@@ -29,9 +30,16 @@ export function useCountdown(opts: {
       }
     }
 
-    tick()
-    const id = window.setInterval(tick, 1000)
-    return () => window.clearInterval(id)
+    const timeoutId = window.setTimeout(tick, 0)
+    if (Number.isNaN(resetAtMs)) {
+      return () => window.clearTimeout(timeoutId)
+    }
+
+    const intervalId = window.setInterval(tick, 1000)
+    return () => {
+      window.clearTimeout(timeoutId)
+      window.clearInterval(intervalId)
+    }
   }, [resetAt, onZero])
 
   return { secondsRemaining }
