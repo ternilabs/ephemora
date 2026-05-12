@@ -35,7 +35,7 @@ function dedupeById(messages: ChatMessage[]): ChatMessage[] {
   return out
 }
 
-export default function ChatRoute() {
+function ChatRoute() {
   const bootstrap = useBootstrap()
   const historyLimit = bootstrap.data?.limits.historyLimit ?? 50
   const history = useMessageHistory(historyLimit, bootstrap.isSuccess)
