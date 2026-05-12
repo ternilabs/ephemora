@@ -3,12 +3,15 @@ import { Container, Stack, Text, Title } from '@mantine/core'
 import ChatShell from '../components/layout/ChatShell'
 
 export const Route = createFileRoute('/about')({
+  head: () => ({
+    meta: [{ title: 'About | Ephemora' }],
+  }),
   component: AboutPage,
 })
 
 function AboutPage() {
   return (
-    <ChatShell headerRight={<div />} headerStatus={<div />}>
+    <ChatShell>
       <Container size="sm" py="xl">
         <Stack gap="md">
           <Title order={2}>About</Title>

@@ -6,7 +6,7 @@ import {
   createRootRoute,
 } from '@tanstack/react-router'
 import { Suspense, lazy } from 'react'
-import { aboutLinkOptions, homeLinkOptions } from './-navigation'
+import { homeLinkOptions } from './-navigation'
 
 const TanStackRouterDevtools = import.meta.env.DEV
   ? lazy(() =>
@@ -20,24 +20,6 @@ function RootLayout() {
   return (
     <>
       <HeadContent />
-      <header className="shell-header">
-        <nav className="shell-nav" aria-label="Primary">
-          <Link
-            {...homeLinkOptions}
-            className="shell-nav-link"
-            activeProps={{ className: 'shell-nav-link shell-nav-link--active' }}
-          >
-            Home
-          </Link>
-          <Link
-            {...aboutLinkOptions}
-            className="shell-nav-link"
-            activeProps={{ className: 'shell-nav-link shell-nav-link--active' }}
-          >
-            About
-          </Link>
-        </nav>
-      </header>
       <Outlet />
       <Scripts />
       {TanStackRouterDevtools ? (
