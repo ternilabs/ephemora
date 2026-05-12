@@ -12,7 +12,6 @@ export function useMessageHistory(limit: number, enabled = true) {
     enabled,
     initialPageParam: null,
     getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-    maxPages: 10,
     staleTime: 5_000,
   })
 }
