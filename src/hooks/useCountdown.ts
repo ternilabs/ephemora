@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 
-export function useCountdown(opts: { resetAt?: string; onZero?: () => void }) {
+export function useCountdown(opts: {
+  resetAt?: string | undefined
+  onZero?: (() => void) | undefined
+}) {
   const { resetAt, onZero } = opts
   const [secondsRemaining, setSecondsRemaining] = useState<number>(0)
   const firedZeroRef = useRef(false)
