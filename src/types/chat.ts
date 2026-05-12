@@ -26,6 +26,15 @@ export interface MessageModeratedPayload {
   moderationStatus: ModerationStatus
 }
 
+export interface MessageSendPayload {
+  content: string
+}
+
+export interface MessageReportPayload {
+  messageId: string
+  reason?: string
+}
+
 export interface UserIdentityPayload {
   nickname: string
 }
@@ -57,4 +66,5 @@ export interface ChatMessage {
   nickname: string
   createdAt: string
   moderationStatus: ModerationStatus
+  deliveryStatus?: 'pending' | 'confirmed'
 }
