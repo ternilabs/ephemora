@@ -11,8 +11,9 @@ export default function MessageInput(props: {
   const [value, setValue] = useState('')
 
   const len = value.length
+  const trimmedValue = value.trim()
   const overLimit = len > props.maxLength
-  const empty = len === 0
+  const empty = trimmedValue.length === 0
   const muted = props.muteRemainingMs > 0
   const coolingDown = props.cooldownRemainingMs > 0
 
@@ -50,9 +51,8 @@ export default function MessageInput(props: {
         <Button
           disabled={disabled}
           onClick={() => {
-            const content = value.trim()
-            if (!content) return
-            props.onSend(content)
+            if (!trimmedValue) return
+            props.onSend(trimmedValue)
             setValue('')
           }}
         >
