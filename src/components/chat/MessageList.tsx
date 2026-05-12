@@ -5,24 +5,74 @@ import MessageBubble from './MessageBubble'
 
 export default function MessageList(props: {
   messages: ChatMessage[]
-  onLoadMore: () => void
+  onLoadMore: () => void | Promise<void>
   hasMore: boolean
   loadingMore: boolean
 }) {
+  const { messages, onLoadMore, hasMore, loadingMore } = props
   const ref = useRef<HTMLDivElement | null>(null)
+  const loadLockedRef = useRef(false)
+  const loadingMoreRef = useRef(loadingMore)
+  const unlockTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    loadingMoreRef.current = loadingMore
+    if (!loadingMore) {
+      loadLockedRef.current = false
+    }
+  }, [loadingMore])
 
   useEffect(() => {
     const el = ref.current
     if (!el) return
 
-    const onScroll = () => {
-      if (!props.hasMore || props.loadingMore) return
-      if (el.scrollTop <= 80) props.onLoadMore()
+    const maybeLoadMore = () => {
+      if (!hasMore || loadingMore || loadLockedRef.current) return
+
+      const nearTop = el.scrollTop <= 80
+      const noOverflow = el.scrollHeight <= el.clientHeight
+      if (!nearTop && !noOverflow) return
+
+      loadLockedRef.current = true
+      const result = onLoadMore()
+
+      if (result && typeof result.finally === 'function') {
+        result.finally(() => {
+          if (!loadingMoreRef.current) {
+            loadLockedRef.current = false
+          }
+        })
+        return
+      }
+
+      if (unlockTimerRef.current) {
+        window.clearTimeout(unlockTimerRef.current)
+      }
+
+      unlockTimerRef.current = window.setTimeout(() => {
+        if (!loadingMoreRef.current) {
+          loadLockedRef.current = false
+        }
+        unlockTimerRef.current = null
+      }, 300)
     }
 
+    const onScroll = () => maybeLoadMore()
     el.addEventListener('scroll', onScroll)
-    return () => el.removeEventListener('scroll', onScroll)
-  }, [props.hasMore, props.loadingMore, props.onLoadMore])
+    maybeLoadMore()
+
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+    }
+  }, [hasMore, loadingMore, messages.length, onLoadMore])
+
+  useEffect(() => {
+    return () => {
+      if (unlockTimerRef.current) {
+        window.clearTimeout(unlockTimerRef.current)
+      }
+    }
+  }, [])
 
   return (
     <Box
@@ -35,7 +85,7 @@ export default function MessageList(props: {
       py="md"
     >
       <Stack gap="sm">
-        {props.messages.map((m) => (
+        {messages.map((m) => (
           <MessageBubble key={m.id} message={m} />
         ))}
       </Stack>
