@@ -5,10 +5,6 @@
   --border: #e5e4e7;
   --code-bg: #f4f3ec;
   --accent: #aa3bff;
-  --accent-bg: rgba(170, 59, 255, 0.1);
-  --accent-border: rgba(170, 59, 255, 0.5);
-  --shadow:
-    rgba(0, 0, 0, 0.1) 0 10px 15px -3px, rgba(0, 0, 0, 0.05) 0 4px 6px -2px;
 
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -37,10 +33,6 @@
     --border: #2e303a;
     --code-bg: #1f2028;
     --accent: #c084fc;
-    --accent-bg: rgba(192, 132, 252, 0.15);
-    --accent-border: rgba(192, 132, 252, 0.5);
-    --shadow:
-      rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
   }
 }
 
@@ -107,47 +99,10 @@ a {
   color: var(--accent);
 }
 
-.shell-header {
-  border-bottom: 1px solid var(--border);
-  padding: 14px 20px;
-}
-
-.shell-nav {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.shell-nav-link {
-  border: 1px solid transparent;
-  border-radius: 6px;
-  color: var(--text);
-  font-size: 14px;
-  line-height: 1;
-  padding: 8px 12px;
-  text-decoration: none;
-  transition: border-color 150ms ease, color 150ms ease, background-color 150ms ease;
-}
-
-.shell-nav-link:hover {
-  border-color: var(--accent-border);
-  color: var(--text-h);
-}
-
-.shell-nav-link--active {
-  background: var(--accent-bg);
-  border-color: var(--accent-border);
-  color: var(--text-h);
-}
-
 .page {
   margin: 0 auto;
   max-width: 720px;
   padding: 32px 20px 48px;
-}
-
-.page-note {
-  margin-top: 8px;
 }
 
 .page p + p {
