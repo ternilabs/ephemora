@@ -50,3 +50,11 @@ export interface ReportAck {
   ok: boolean
   error?: string
 }
+
+export interface ChatMessage {
+  id: string
+  content: string
+  nickname: string
+  createdAt: string
+  moderationStatus: ModerationStatus
+}
