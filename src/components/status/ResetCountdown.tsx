@@ -8,7 +8,10 @@ function formatSeconds(seconds: number): string {
   return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':')
 }
 
-export default function ResetCountdown(props: { resetAt?: string; onZero?: () => void }) {
+export default function ResetCountdown(props: {
+  resetAt?: string | undefined
+  onZero?: (() => void) | undefined
+}) {
   const { secondsRemaining } = useCountdown({ resetAt: props.resetAt, onZero: props.onZero })
   return (
     <Text size="sm" c="dimmed">
