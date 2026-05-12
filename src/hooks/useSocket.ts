@@ -37,6 +37,7 @@ export function useSocket(options: UseSocketOptions) {
 
   const mountedAtRef = useRef(0)
   const unavailableTimerRef = useRef<number | null>(null)
+  const tickerIntervalRef = useRef<number | null>(null)
 
   const socket: Socket | null = useMemo(() => {
     if (!enabled) return null
@@ -44,16 +45,31 @@ export function useSocket(options: UseSocketOptions) {
   }, [enabled, token])
 
   useEffect(() => {
+    const clearTicker = () => {
+      if (tickerIntervalRef.current !== null) {
+        window.clearInterval(tickerIntervalRef.current)
+        tickerIntervalRef.current = null
+      }
+    }
+
     if (cooldownUntilMs <= Date.now() && muteUntilMs <= Date.now()) {
+      clearTicker()
       return
     }
 
-    const intervalId = window.setInterval(() => {
-      setNowMs(Date.now())
-    }, 250)
+    if (tickerIntervalRef.current === null) {
+      tickerIntervalRef.current = window.setInterval(() => {
+        const now = Date.now()
+        setNowMs(now)
+
+        if (cooldownUntilMs <= now && muteUntilMs <= now) {
+          clearTicker()
+        }
+      }, 250)
+    }
 
     return () => {
-      window.clearInterval(intervalId)
+      clearTicker()
     }
   }, [cooldownUntilMs, muteUntilMs])
 
@@ -117,7 +133,7 @@ export function useSocket(options: UseSocketOptions) {
       notifications.show({
         color: 'red',
         title: 'Muted',
-        message: 'Muted for 5 minutes.',
+        message: `Muted for ${Math.ceil(payload.muteRemainingMs / 1000)}s.`,
       })
     }
 
