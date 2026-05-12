@@ -9,11 +9,13 @@ let lastToken: string | null = null
 export function getSocket(token: string): Socket {
   if (!socket || lastToken !== token) {
     socket?.disconnect()
-    lastToken = token
-    socket = io(realtimeUrl, {
+    socket = null
+    const nextSocket = io(realtimeUrl, {
       auth: { token },
       autoConnect: false,
     })
+    socket = nextSocket
+    lastToken = token
   }
 
   return socket
