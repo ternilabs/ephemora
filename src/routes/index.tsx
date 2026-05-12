@@ -54,7 +54,12 @@ export default function ChatRoute() {
         <Container size="sm">
           <Stack gap="sm">
             <Text>Failed to load chat settings.</Text>
-            <Button onClick={() => bootstrap.refetch()} variant="light">
+            <Button
+              onClick={() => bootstrap.refetch()}
+              variant="light"
+              loading={bootstrap.isRefetching}
+              disabled={bootstrap.isRefetching}
+            >
               Retry
             </Button>
           </Stack>
@@ -87,7 +92,12 @@ export default function ChatRoute() {
         <Container size="sm" py="xl">
           <Stack gap="sm">
             <Text>Failed to load messages.</Text>
-            <Button onClick={() => history.refetch()} variant="light">
+            <Button
+              onClick={() => history.refetch()}
+              variant="light"
+              loading={history.isRefetching}
+              disabled={history.isRefetching}
+            >
               Retry
             </Button>
           </Stack>
