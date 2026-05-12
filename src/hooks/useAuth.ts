@@ -2,22 +2,32 @@ import { useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useSession } from './useSession'
 
+type OAuthProvider = 'google' | 'github'
+
+function getRedirectTo() {
+  if (typeof window === 'undefined') return undefined
+  return `${window.location.origin}/auth/callback`
+}
+
 export function useAuth() {
   const { data: session, isLoading } = useSession()
 
-  const signInWithGoogle = useCallback(() => {
+  const signInWithOAuth = useCallback((provider: OAuthProvider) => {
+    const redirectTo = getRedirectTo()
+
     return supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
+      provider,
+      ...(redirectTo ? { options: { redirectTo } } : {}),
     })
   }, [])
 
+  const signInWithGoogle = useCallback(() => {
+    return signInWithOAuth('google')
+  }, [signInWithOAuth])
+
   const signInWithGitHub = useCallback(() => {
-    return supabase.auth.signInWithOAuth({
-      provider: 'github',
-      options: { redirectTo: `${window.location.origin}/auth/callback` },
-    })
-  }, [])
+    return signInWithOAuth('github')
+  }, [signInWithOAuth])
 
   const signOut = useCallback(() => supabase.auth.signOut(), [])
 
