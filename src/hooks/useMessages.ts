@@ -6,12 +6,22 @@ import type {
   ModerationStatus,
 } from '../types/chat'
 
+let pendingCounter = 0
+
 function nowIso(): string {
   return new Date().toISOString()
 }
 
+function toTimestamp(value: string): number | null {
+  const timestamp = Date.parse(value)
+  return Number.isNaN(timestamp) ? null : timestamp
+}
+
 function pendingId(): string {
-  const id = typeof crypto !== 'undefined' && 'randomUUID' in crypto ? crypto.randomUUID() : `${Date.now()}`
+  const hasRandomUuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+  const id = hasRandomUuid
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.floor(Math.random() * 1_000_000)}-${pendingCounter++}`
   return `pending:${id}`
 }
 
@@ -41,41 +51,70 @@ export function useMessages() {
 
   const removeMessageById = useCallback((id: string) => {
     setLiveMessages((previous) => previous.filter((message) => message.id !== id))
+    setModerationOverrides((previous) => {
+      if (!(id in previous)) {
+        return previous
+      }
+
+      const next = { ...previous }
+      delete next[id]
+      return next
+    })
   }, [])
 
   const confirmOrAddMessage = useCallback((payload: MessageNewPayload) => {
     setLiveMessages((previous) => {
-      const pendingIndex = previous.findIndex(
-        (message) =>
-          message.deliveryStatus === 'pending' &&
-          message.content === payload.content &&
-          message.nickname === payload.nickname,
+      const confirmedMessage: ChatMessage = {
+        id: payload.id,
+        content: payload.content,
+        nickname: payload.nickname,
+        createdAt: payload.createdAt,
+        moderationStatus: payload.moderationStatus,
+        deliveryStatus: 'confirmed',
+      }
+
+      const existingConfirmedIndex = previous.findIndex(
+        (message) => message.id === payload.id && message.deliveryStatus !== 'pending',
       )
 
-      if (pendingIndex >= 0) {
+      if (existingConfirmedIndex >= 0) {
         const next = [...previous]
-        next[pendingIndex] = {
-          id: payload.id,
-          content: payload.content,
-          nickname: payload.nickname,
-          createdAt: payload.createdAt,
-          moderationStatus: payload.moderationStatus,
-          deliveryStatus: 'confirmed',
-        }
+        next[existingConfirmedIndex] = confirmedMessage
         return next
       }
 
-      return [
-        ...previous,
-        {
-          id: payload.id,
-          content: payload.content,
-          nickname: payload.nickname,
-          createdAt: payload.createdAt,
-          moderationStatus: payload.moderationStatus,
-          deliveryStatus: 'confirmed',
-        },
-      ]
+      const payloadTimestamp = toTimestamp(payload.createdAt)
+      let pendingIndex = -1
+      let bestScore = Number.POSITIVE_INFINITY
+
+      previous.forEach((message, index) => {
+        if (
+          message.deliveryStatus !== 'pending' ||
+          message.content !== payload.content ||
+          message.nickname !== payload.nickname
+        ) {
+          return
+        }
+
+        const pendingTimestamp = toTimestamp(message.createdAt)
+        const score =
+          payloadTimestamp !== null && pendingTimestamp !== null
+            ? Math.abs(payloadTimestamp - pendingTimestamp)
+            : index
+
+        if (score < bestScore) {
+          bestScore = score
+          pendingIndex = index
+        }
+      })
+
+      if (pendingIndex >= 0) {
+        const next = [...previous]
+        next[pendingIndex] = confirmedMessage
+        return next
+      }
+
+      return [...previous, confirmedMessage]
     })
   }, [])
 
