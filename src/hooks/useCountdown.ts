@@ -14,12 +14,14 @@ export function useCountdown(opts: {
 
   useEffect(() => {
     if (!resetAt) return
+    const resetAtMs = new Date(resetAt).getTime()
+    if (Number.isNaN(resetAtMs)) {
+      setSecondsRemaining(0)
+      return
+    }
 
     const tick = () => {
-      const sec = Math.max(
-        0,
-        Math.floor((new Date(resetAt).getTime() - Date.now()) / 1000),
-      )
+      const sec = Math.max(0, Math.floor((resetAtMs - Date.now()) / 1000))
       setSecondsRemaining(sec)
       if (sec === 0 && !firedZeroRef.current) {
         firedZeroRef.current = true
