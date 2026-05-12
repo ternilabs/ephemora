@@ -10,7 +10,11 @@ function AuthCallbackRoute() {
   const { data: session, isLoading } = useSession()
 
   if (!isLoading && session) {
-    return <Navigate to="/" />
+    return <Navigate to="/" replace />
+  }
+
+  if (!isLoading) {
+    return <Navigate to="/" replace />
   }
 
   return (
