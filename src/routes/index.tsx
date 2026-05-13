@@ -183,6 +183,8 @@ function ChatRoute() {
       ) : (
         <MessageList
           messages={messages}
+          canReport={false}
+          onReport={() => {}}
           onLoadMore={() => history.fetchNextPage()}
           hasMore={!!history.hasNextPage}
           loadingMore={history.isFetchingNextPage}

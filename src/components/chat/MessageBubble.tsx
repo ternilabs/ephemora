@@ -9,6 +9,7 @@ export default function MessageBubble(props: {
 }) {
   const m = props.message
   const isPending = m.deliveryStatus === 'pending'
+  const reportLabel = `Report message from ${m.nickname} sent at ${formatTime(m.createdAt)}`
 
   return (
     <Paper withBorder p="sm" radius={0}>
@@ -28,6 +29,7 @@ export default function MessageBubble(props: {
             <Button
               variant="default"
               size="xs"
+              aria-label={reportLabel}
               disabled={!props.canReport || isPending}
               onClick={props.onReport}
             >

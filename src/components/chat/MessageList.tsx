@@ -5,13 +5,13 @@ import MessageBubble from './MessageBubble'
 
 export default function MessageList(props: {
   messages: ChatMessage[]
-  canReport?: boolean
-  onReport?: (message: ChatMessage) => void
+  canReport: boolean
+  onReport: (message: ChatMessage) => void
   onLoadMore: () => void | Promise<unknown>
   hasMore: boolean
   loadingMore: boolean
 }) {
-  const { messages, canReport = false, onReport, onLoadMore, hasMore, loadingMore } = props
+  const { messages, canReport, onReport, onLoadMore, hasMore, loadingMore } = props
   const ref = useRef<HTMLDivElement | null>(null)
   const loadLockedRef = useRef(false)
   const loadingMoreRef = useRef(loadingMore)
@@ -92,7 +92,7 @@ export default function MessageList(props: {
             key={m.id}
             message={m}
             canReport={canReport}
-            onReport={() => onReport?.(m)}
+            onReport={() => onReport(m)}
           />
         ))}
       </Stack>
