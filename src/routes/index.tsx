@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button, Center, Container, Loader, Stack, Text } from '@mantine/core'
 import JoinButton from '../components/auth/JoinButton'
 import UserBadge from '../components/auth/UserBadge'
@@ -43,6 +44,7 @@ function dedupeById(messages: ChatMessage[]): ChatMessage[] {
 }
 
 function ChatRoute() {
+  const queryClient = useQueryClient()
   const bootstrap = useBootstrap()
   const { session, signInWithGoogle, signInWithGitHub, signOut } = useAuth()
   const token = session?.access_token ?? ''
@@ -79,6 +81,7 @@ function ChatRoute() {
   const handleReset = useCallback(() => {
     clearMessages()
     setHideHistoryMessages(true)
+    void queryClient.removeQueries({ queryKey: ['messages', 'history', historyLimit], exact: true })
 
     const requestId = ++resetRequestRef.current
     void refetchHistory().finally(() => {
@@ -86,7 +89,7 @@ function ChatRoute() {
         setHideHistoryMessages(false)
       }
     })
-  }, [clearMessages, refetchHistory])
+  }, [clearMessages, historyLimit, queryClient, refetchHistory])
 
   const socketState = useSocket({
     token,
