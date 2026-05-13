@@ -5,11 +5,13 @@ import MessageBubble from './MessageBubble'
 
 export default function MessageList(props: {
   messages: ChatMessage[]
+  canReport?: boolean
+  onReport?: (message: ChatMessage) => void
   onLoadMore: () => void | Promise<unknown>
   hasMore: boolean
   loadingMore: boolean
 }) {
-  const { messages, onLoadMore, hasMore, loadingMore } = props
+  const { messages, canReport = false, onReport, onLoadMore, hasMore, loadingMore } = props
   const ref = useRef<HTMLDivElement | null>(null)
   const loadLockedRef = useRef(false)
   const loadingMoreRef = useRef(loadingMore)
@@ -78,7 +80,7 @@ export default function MessageList(props: {
     <Box
       ref={ref}
       style={{
-        height: 'calc(100dvh - 56px - 44px)',
+        height: 'calc(100dvh - 56px - 44px - 84px)',
         overflowY: 'auto',
       }}
       px="md"
@@ -86,7 +88,12 @@ export default function MessageList(props: {
     >
       <Stack gap="sm">
         {messages.map((m) => (
-          <MessageBubble key={m.id} message={m} />
+          <MessageBubble
+            key={m.id}
+            message={m}
+            canReport={canReport}
+            onReport={() => onReport?.(m)}
+          />
         ))}
       </Stack>
     </Box>
