@@ -148,36 +148,19 @@ function ChatRoute() {
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
   const openReport = (m: ChatMessage) => {
-    let modalId = ''
-    const renderReportModal = (submitting: boolean) => (
-      <ReportMessageModal
-        contentPreview={m.content}
-        submitting={submitting}
-        onCancel={() => {
-          if (!submitting) {
-            modals.close(modalId)
-          }
-        }}
-        onSubmit={async (reason) => {
-          if (submitting) {
-            return
-          }
-
-          modals.updateModal({
-            modalId,
-            closeOnClickOutside: false,
-            closeOnEscape: false,
-            children: renderReportModal(true),
-          })
-          await report.mutateAsync(reason ? { messageId: m.id, reason } : { messageId: m.id })
-          modals.close(modalId)
-        }}
-      />
-    )
-
-    modalId = modals.open({
+    const id = modals.open({
       title: 'Report message',
-      children: renderReportModal(false),
+      children: (
+        <ReportMessageModal
+          contentPreview={m.content}
+          submitting={report.isPending}
+          onCancel={() => modals.close(id)}
+          onSubmit={(reason = '') => {
+            report.mutate({ messageId: m.id, reason })
+            modals.close(id)
+          }}
+        />
+      ),
     })
   }
 
