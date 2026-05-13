@@ -6,6 +6,7 @@ export default function MessageInput(props: {
   cooldownWindowMs: number
   cooldownRemainingMs: number
   muteRemainingMs: number
+  sendDisabled?: boolean
   onSend: (content: string) => void
 }) {
   const [value, setValue] = useState('')
@@ -25,7 +26,7 @@ export default function MessageInput(props: {
     return Math.max(0, Math.min(100, (props.cooldownRemainingMs / props.cooldownWindowMs) * 100))
   }, [coolingDown, props.cooldownRemainingMs, props.cooldownWindowMs])
 
-  const disabled = muted || coolingDown || empty || overLimit
+  const disabled = !!props.sendDisabled || muted || coolingDown || empty || overLimit
 
   return (
     <Stack gap={6} px="md" py="sm">

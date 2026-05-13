@@ -195,6 +195,7 @@ function ChatRoute() {
           cooldownWindowMs={cooldownWindowMs}
           cooldownRemainingMs={socketState.cooldownRemainingMs}
           muteRemainingMs={socketState.muteRemainingMs}
+          sendDisabled={socketState.status !== 'connected'}
           onSend={(content) => {
             if (socketState.nickname) {
               addPendingMessage(content, socketState.nickname)

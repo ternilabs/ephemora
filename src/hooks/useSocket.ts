@@ -239,10 +239,19 @@ export function useSocket(options: UseSocketOptions) {
         return
       }
 
+      if (status !== 'connected') {
+        notifications.show({
+          color: 'yellow',
+          title: 'Not connected',
+          message: 'Please wait for the chat to reconnect before sending.',
+        })
+        return
+      }
+
       setCooldownUntilMs(Date.now() + cooldownSeconds * 1000)
       socket.emit('message:send', { content })
     },
-    [socket, isAuthed, cooldownSeconds],
+    [socket, isAuthed, status, cooldownSeconds],
   )
 
   return {
