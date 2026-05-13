@@ -7,7 +7,6 @@ export default function ModerationMessageCard(props: {
   onRestore: () => void
   onReviewed: () => void
   onBan: () => void
-  canBan: boolean
   hideLoading: boolean
   restoreLoading: boolean
   reviewedLoading: boolean
@@ -59,10 +58,9 @@ export default function ModerationMessageCard(props: {
               size="xs"
               onClick={props.onBan}
               loading={props.banLoading}
-              disabled={props.disableActions || !props.canBan}
-              title={props.canBan ? undefined : 'User identifier is not available for this message'}
+              disabled={props.disableActions}
             >
-              {props.canBan ? 'Ban user' : 'Ban unavailable'}
+              Ban user
             </Button>
           </Group>
         </Group>

@@ -26,11 +26,7 @@ export default function ReviewQueueTab(props: { enabled: boolean }) {
           onHide={() => actions.hideMessage.mutate(report.id)}
           onRestore={() => actions.restoreMessage.mutate(report.id)}
           onReviewed={() => actions.markReviewed.mutate(report.id)}
-          onBan={() => {
-            if (!report.supabase_user_id) return
-            actions.banUser.mutate({ id: report.supabase_user_id })
-          }}
-          canBan={Boolean(report.supabase_user_id)}
+          onBan={() => actions.banUser.mutate({ id: report.supabase_user_id })}
           hideLoading={actions.hideMessage.isPending}
           restoreLoading={actions.restoreMessage.isPending}
           reviewedLoading={actions.markReviewed.isPending}
