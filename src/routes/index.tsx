@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Button, Center, Container, Loader, Stack, Text } from '@mantine/core'
 import JoinButton from '../components/auth/JoinButton'
 import UserBadge from '../components/auth/UserBadge'
@@ -50,6 +50,7 @@ function ChatRoute() {
 
   const historyLimit = bootstrap.data?.limits.historyLimit ?? 50
   const history = useMessageHistory(historyLimit, bootstrap.isSuccess)
+  const refetchHistory = history.refetch
 
   const {
     liveMessages,
@@ -60,6 +61,8 @@ function ChatRoute() {
     applyModerationUpdate,
     clearMessages,
   } = useMessages()
+  const [hideHistoryMessages, setHideHistoryMessages] = useState(false)
+  const resetRequestRef = useRef(0)
 
   const liveMessagesRef = useRef<ChatMessage[]>(liveMessages)
   useEffect(() => {
@@ -73,13 +76,25 @@ function ChatRoute() {
     }
   }, [removeMessageById])
 
+  const handleReset = useCallback(() => {
+    clearMessages()
+    setHideHistoryMessages(true)
+
+    const requestId = ++resetRequestRef.current
+    void refetchHistory().finally(() => {
+      if (resetRequestRef.current === requestId) {
+        setHideHistoryMessages(false)
+      }
+    })
+  }, [clearMessages, refetchHistory])
+
   const socketState = useSocket({
     token,
-    enabled: true,
+    enabled: bootstrap.isSuccess,
     cooldownSeconds: bootstrap.data?.limits.messageCooldownSeconds ?? 5,
     onMessageNew: confirmOrAddMessage,
     onMessageModerated: applyModerationUpdate,
-    onReset: clearMessages,
+    onReset: handleReset,
     onRemovePending: removeMostRecentPending,
   })
 
@@ -115,7 +130,7 @@ function ChatRoute() {
   const maxLen = bootstrap.data?.limits.messageMaxLength ?? 500
   const cooldownWindowMs = (bootstrap.data?.limits.messageCooldownSeconds ?? 5) * 1000
 
-  const rows = history.data?.pages.flatMap((p) => p.messages) ?? []
+  const rows = hideHistoryMessages ? [] : (history.data?.pages.flatMap((p) => p.messages) ?? [])
   const historyMessages = rows.map(toChatMessage)
   const messages = dedupeById([...historyMessages, ...liveMessages])
     .map((message) => ({
@@ -129,7 +144,7 @@ function ChatRoute() {
     <ChatShell
       headerStatus={
         <>
-          <ResetCountdown resetAt={resetAt} onZero={clearMessages} />
+          <ResetCountdown resetAt={resetAt} onZero={handleReset} />
           <PresenceCounter count={socketState.presenceCount} />
           <ConnectionStatus status={socketState.status} />
         </>
@@ -178,8 +193,9 @@ function ChatRoute() {
           cooldownRemainingMs={socketState.cooldownRemainingMs}
           muteRemainingMs={socketState.muteRemainingMs}
           onSend={(content) => {
-            if (!socketState.nickname) return
-            addPendingMessage(content, socketState.nickname)
+            if (socketState.nickname) {
+              addPendingMessage(content, socketState.nickname)
+            }
             socketState.sendMessage(content)
           }}
         />
