@@ -17,7 +17,7 @@ export default function BannedUsersTab(props: { enabled: boolean }) {
         <ModerationUserRow
           key={user.id}
           user={user}
-          onUnban={() => actions.unbanUser.mutate(user.id)}
+          onUnban={() => actions.unbanUser.mutate(user.supabase_user_id)}
           unbanLoading={unbanPending}
           unbanDisabled={unbanPending}
         />

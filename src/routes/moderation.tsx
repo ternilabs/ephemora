@@ -1,4 +1,4 @@
-import { Tabs, Text } from '@mantine/core'
+import { Button, Stack, Tabs, Text } from '@mantine/core'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import AiActionsTab from '../components/moderation/AiActionsTab'
@@ -14,7 +14,7 @@ export const Route = createFileRoute('/moderation')({
 type ModerationTab = 'review' | 'ai' | 'banned'
 
 function ModerationRoute() {
-  const { isModerator, isLoading } = useModerator()
+  const { isModerator, isLoading, isForbidden, isLoadFailed, isRetrying, retry } = useModerator()
   const [activeTab, setActiveTab] = useState<ModerationTab>('review')
 
   if (isLoading) {
@@ -25,10 +25,36 @@ function ModerationRoute() {
     )
   }
 
-  if (!isModerator) {
+  if (isForbidden) {
     return (
       <ModerationShell>
         <Text>403 — Moderator access required.</Text>
+      </ModerationShell>
+    )
+  }
+
+  if (isLoadFailed) {
+    return (
+      <ModerationShell>
+        <Stack gap="sm">
+          <Text>Failed to verify moderation access.</Text>
+          <Button
+            variant="light"
+            onClick={() => retry()}
+            loading={isRetrying}
+            disabled={isRetrying}
+          >
+            Retry
+          </Button>
+        </Stack>
+      </ModerationShell>
+    )
+  }
+
+  if (!isModerator) {
+    return (
+      <ModerationShell>
+        <Text>Failed to verify moderation access.</Text>
       </ModerationShell>
     )
   }

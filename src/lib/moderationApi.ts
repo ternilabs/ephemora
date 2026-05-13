@@ -5,6 +5,18 @@ const BASE = import.meta.env.VITE_REALTIME_URL as string | undefined
 
 if (!BASE) throw new Error('Missing VITE_REALTIME_URL')
 
+export class ModerationApiError extends Error {
+  status: number
+  path: string
+
+  constructor(status: number, path: string) {
+    super(`Moderation API ${status}: ${path}`)
+    this.name = 'ModerationApiError'
+    this.status = status
+    this.path = path
+  }
+}
+
 function assertValidReportUserIds(reports: ModerationReport[]): ModerationReport[] {
   reports.forEach((report, index) => {
     if (typeof report.supabase_user_id === 'string' && report.supabase_user_id.trim().length > 0) {
@@ -31,7 +43,11 @@ async function moderationFetch<T>(path: string, options?: RequestInit): Promise<
     headers,
   })
 
-  if (!res.ok) throw new Error(`Moderation API ${res.status}: ${path}`)
+  if (!res.ok) throw new ModerationApiError(res.status, path)
+
+  if (res.status === 204) {
+    return {} as T
+  }
 
   return res.json() as Promise<T>
 }

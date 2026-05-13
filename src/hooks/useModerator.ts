@@ -1,11 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
-import { moderationApi } from '../lib/moderationApi'
+import { ModerationApiError, moderationApi } from '../lib/moderationApi'
 import { useSession } from './useSession'
 
 export function useModerator() {
   const { data: session, isLoading: sessionLoading } = useSession()
 
-  const { isError, isLoading } = useQuery({
+  const accessCheck = useQuery({
     queryKey: ['moderation', 'access-check'],
     queryFn: () => moderationApi.getReports(),
     enabled: !!session,
@@ -13,8 +13,18 @@ export function useModerator() {
     staleTime: 30_000,
   })
 
+  const error = accessCheck.error
+  const isForbiddenError =
+    error instanceof ModerationApiError
+      ? error.status === 403
+      : error instanceof Error && error.message.startsWith('Moderation API 403:')
+
   return {
-    isModerator: !isError && !!session,
-    isLoading: sessionLoading || isLoading,
+    isModerator: !!session && accessCheck.isSuccess,
+    isLoading: sessionLoading || (!!session && accessCheck.isLoading),
+    isForbidden: !session || (!!session && accessCheck.isError && isForbiddenError),
+    isLoadFailed: !!session && accessCheck.isError && !isForbiddenError,
+    isRetrying: accessCheck.isRefetching,
+    retry: accessCheck.refetch,
   }
 }
