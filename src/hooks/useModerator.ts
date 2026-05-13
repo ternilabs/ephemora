@@ -13,6 +13,7 @@ export function useModerator() {
     staleTime: 30_000,
   })
 
+  const hasVerifiedAccess = accessCheck.data !== undefined
   const error = accessCheck.error
   const isForbiddenError =
     error instanceof ModerationApiError
@@ -20,10 +21,10 @@ export function useModerator() {
       : error instanceof Error && error.message.startsWith('Moderation API 403:')
 
   return {
-    isModerator: !!session && accessCheck.isSuccess,
+    isModerator: !!session && (accessCheck.isSuccess || hasVerifiedAccess),
     isLoading: sessionLoading || (!!session && accessCheck.isLoading),
     isForbidden: !session || (!!session && accessCheck.isError && isForbiddenError),
-    isLoadFailed: !!session && accessCheck.isError && !isForbiddenError,
+    isLoadFailed: !!session && accessCheck.isError && !isForbiddenError && !hasVerifiedAccess,
     isRetrying: accessCheck.isRefetching,
     retry: accessCheck.refetch,
   }

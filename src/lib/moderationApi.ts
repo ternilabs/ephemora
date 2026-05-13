@@ -9,8 +9,8 @@ export class ModerationApiError extends Error {
   status: number
   path: string
 
-  constructor(status: number, path: string) {
-    super(`Moderation API ${status}: ${path}`)
+  constructor(status: number, path: string, details?: string) {
+    super(details ? `Moderation API ${status}: ${path} (${details})` : `Moderation API ${status}: ${path}`)
     this.name = 'ModerationApiError'
     this.status = status
     this.path = path
@@ -31,7 +31,12 @@ function assertValidReportUserIds(reports: ModerationReport[]): ModerationReport
 }
 
 async function moderationFetch<T>(path: string, options?: RequestInit): Promise<T> {
-  const session = (await supabase.auth.getSession()).data.session
+  const { data, error: sessionError } = await supabase.auth.getSession()
+  if (sessionError) {
+    throw new ModerationApiError(401, '/auth/session', sessionError.message)
+  }
+
+  const session = data.session
   const token = session?.access_token ?? ''
 
   const headers = new Headers(options?.headers)
