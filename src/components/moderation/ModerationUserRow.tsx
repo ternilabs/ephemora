@@ -1,7 +1,12 @@
 import { Button, Group, Paper, Stack, Text } from '@mantine/core'
 import type { BannedUser } from '../../types/moderation'
 
-export default function ModerationUserRow(props: { user: BannedUser; onUnban: () => void }) {
+export default function ModerationUserRow(props: {
+  user: BannedUser
+  onUnban: () => void
+  unbanLoading: boolean
+  unbanDisabled: boolean
+}) {
   return (
     <Paper withBorder p="sm" radius={0}>
       <Group justify="space-between">
@@ -11,7 +16,12 @@ export default function ModerationUserRow(props: { user: BannedUser; onUnban: ()
             until: {props.user.banned_until ?? '—'} • reason: {props.user.ban_reason ?? '—'}
           </Text>
         </Stack>
-        <Button variant="default" onClick={props.onUnban}>
+        <Button
+          variant="default"
+          onClick={props.onUnban}
+          loading={props.unbanLoading}
+          disabled={props.unbanDisabled}
+        >
           Unban
         </Button>
       </Group>

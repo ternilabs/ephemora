@@ -1,5 +1,6 @@
 export interface ModerationReport {
   id: string
+  supabase_user_id?: string | null
   content: string
   report_count: number
   moderation_status: string

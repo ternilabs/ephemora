@@ -6,6 +6,7 @@ import ModerationUserRow from './ModerationUserRow'
 export default function BannedUsersTab(props: { enabled: boolean }) {
   const banned = useBannedUsers(props.enabled)
   const actions = useModerationActions()
+  const unbanPending = actions.unbanUser.isPending
 
   if (banned.isLoading) return <Text>Loading…</Text>
   if (banned.isError) return <Text>Failed to load.</Text>
@@ -17,6 +18,8 @@ export default function BannedUsersTab(props: { enabled: boolean }) {
           key={user.id}
           user={user}
           onUnban={() => actions.unbanUser.mutate(user.id)}
+          unbanLoading={unbanPending}
+          unbanDisabled={unbanPending}
         />
       ))}
     </Stack>

@@ -6,6 +6,13 @@ export default function ModerationMessageCard(props: {
   onHide: () => void
   onRestore: () => void
   onReviewed: () => void
+  onBan: () => void
+  canBan: boolean
+  hideLoading: boolean
+  restoreLoading: boolean
+  reviewedLoading: boolean
+  banLoading: boolean
+  disableActions: boolean
 }) {
   const nickname = props.report.daily_identities?.nickname ?? 'Anonymous'
 
@@ -19,14 +26,43 @@ export default function ModerationMessageCard(props: {
             <Badge color="yellow">{props.report.moderation_status}</Badge>
           </Group>
           <Group gap="xs">
-            <Button variant="default" size="xs" onClick={props.onReviewed}>
+            <Button
+              variant="default"
+              size="xs"
+              onClick={props.onReviewed}
+              loading={props.reviewedLoading}
+              disabled={props.disableActions}
+            >
               Mark reviewed
             </Button>
-            <Button color="yellow" size="xs" onClick={props.onHide}>
+            <Button
+              color="yellow"
+              size="xs"
+              onClick={props.onHide}
+              loading={props.hideLoading}
+              disabled={props.disableActions}
+            >
               Hide
             </Button>
-            <Button variant="default" size="xs" onClick={props.onRestore}>
+            <Button
+              variant="default"
+              size="xs"
+              onClick={props.onRestore}
+              loading={props.restoreLoading}
+              disabled={props.disableActions}
+            >
               Restore
+            </Button>
+            <Button
+              color="red"
+              variant="light"
+              size="xs"
+              onClick={props.onBan}
+              loading={props.banLoading}
+              disabled={props.disableActions || !props.canBan}
+              title={props.canBan ? undefined : 'User identifier is not available for this message'}
+            >
+              {props.canBan ? 'Ban user' : 'Ban unavailable'}
             </Button>
           </Group>
         </Group>

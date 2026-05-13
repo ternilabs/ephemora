@@ -6,6 +6,11 @@ import ModerationMessageCard from './ModerationMessageCard'
 export default function ReviewQueueTab(props: { enabled: boolean }) {
   const reports = useModerationReports(props.enabled)
   const actions = useModerationActions()
+  const disableActions =
+    actions.hideMessage.isPending ||
+    actions.restoreMessage.isPending ||
+    actions.markReviewed.isPending ||
+    actions.banUser.isPending
 
   if (reports.isLoading) return <Text>Loading…</Text>
   if (reports.isError) return <Text>Failed to load.</Text>
@@ -21,6 +26,16 @@ export default function ReviewQueueTab(props: { enabled: boolean }) {
           onHide={() => actions.hideMessage.mutate(report.id)}
           onRestore={() => actions.restoreMessage.mutate(report.id)}
           onReviewed={() => actions.markReviewed.mutate(report.id)}
+          onBan={() => {
+            if (!report.supabase_user_id) return
+            actions.banUser.mutate({ id: report.supabase_user_id })
+          }}
+          canBan={Boolean(report.supabase_user_id)}
+          hideLoading={actions.hideMessage.isPending}
+          restoreLoading={actions.restoreMessage.isPending}
+          reviewedLoading={actions.markReviewed.isPending}
+          banLoading={actions.banUser.isPending}
+          disableActions={disableActions}
         />
       ))}
     </Stack>
