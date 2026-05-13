@@ -16,8 +16,16 @@ function subscribeToSession(queryClient: QueryClient) {
     return
   }
 
+  let previousUserId = queryClient.getQueryData<Session | null>(sessionQueryKey)?.user.id ?? null
+
   const { data } = supabase.auth.onAuthStateChange((_event, session) => {
     queryClient.setQueryData(sessionQueryKey, session)
+
+    const currentUserId = session?.user.id ?? null
+    if (previousUserId !== currentUserId) {
+      queryClient.removeQueries({ queryKey: ['moderation'] })
+      previousUserId = currentUserId
+    }
   })
 
   sessionSubscriptions.set(queryClient, {
