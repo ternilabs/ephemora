@@ -1,10 +1,19 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { useCallback, useEffect, useRef } from 'react'
 import { Button, Center, Container, Loader, Stack, Text } from '@mantine/core'
+import JoinButton from '../components/auth/JoinButton'
+import UserBadge from '../components/auth/UserBadge'
+import MessageInput from '../components/chat/MessageInput'
 import ChatShell from '../components/layout/ChatShell'
 import MessageList from '../components/chat/MessageList'
+import ConnectionStatus from '../components/status/ConnectionStatus'
+import PresenceCounter from '../components/status/PresenceCounter'
 import ResetCountdown from '../components/status/ResetCountdown'
+import { useAuth } from '../hooks/useAuth'
 import { useBootstrap } from '../hooks/useBootstrap'
 import { useMessageHistory } from '../hooks/useMessageHistory'
+import { useMessages } from '../hooks/useMessages'
+import { useSocket } from '../hooks/useSocket'
 import type { ChatMessage, MessageRow } from '../types/chat'
 
 export const Route = createFileRoute('/')({
@@ -21,24 +30,58 @@ function toChatMessage(row: MessageRow): ChatMessage {
     nickname: row.nickname,
     createdAt: row.created_at,
     moderationStatus: row.moderation_status,
+    deliveryStatus: 'confirmed',
   }
 }
 
 function dedupeById(messages: ChatMessage[]): ChatMessage[] {
-  const seen = new Set<string>()
-  const out: ChatMessage[] = []
+  const byId = new Map<string, ChatMessage>()
   for (const m of messages) {
-    if (seen.has(m.id)) continue
-    seen.add(m.id)
-    out.push(m)
+    byId.set(m.id, m)
   }
-  return out
+  return [...byId.values()]
 }
 
 function ChatRoute() {
   const bootstrap = useBootstrap()
+  const { session, signInWithGoogle, signInWithGitHub, signOut } = useAuth()
+  const token = session?.access_token ?? ''
+  const isAuthed = token.length > 0
+
   const historyLimit = bootstrap.data?.limits.historyLimit ?? 50
   const history = useMessageHistory(historyLimit, bootstrap.isSuccess)
+
+  const {
+    liveMessages,
+    moderationOverrides,
+    addPendingMessage,
+    removeMessageById,
+    confirmOrAddMessage,
+    applyModerationUpdate,
+    clearMessages,
+  } = useMessages()
+
+  const liveMessagesRef = useRef<ChatMessage[]>(liveMessages)
+  useEffect(() => {
+    liveMessagesRef.current = liveMessages
+  }, [liveMessages])
+
+  const removeMostRecentPending = useCallback(() => {
+    const pending = [...liveMessagesRef.current].reverse().find((m) => m.deliveryStatus === 'pending')
+    if (pending) {
+      removeMessageById(pending.id)
+    }
+  }, [removeMessageById])
+
+  const socketState = useSocket({
+    token,
+    enabled: true,
+    cooldownSeconds: bootstrap.data?.limits.messageCooldownSeconds ?? 5,
+    onMessageNew: confirmOrAddMessage,
+    onMessageModerated: applyModerationUpdate,
+    onReset: clearMessages,
+    onRemovePending: removeMostRecentPending,
+  })
 
   if (bootstrap.isLoading) {
     return (
@@ -69,18 +112,35 @@ function ChatRoute() {
   }
 
   const resetAt = bootstrap.data?.reset.resetAt
+  const maxLen = bootstrap.data?.limits.messageMaxLength ?? 500
+  const cooldownWindowMs = (bootstrap.data?.limits.messageCooldownSeconds ?? 5) * 1000
 
   const rows = history.data?.pages.flatMap((p) => p.messages) ?? []
-  const mapped = rows.map(toChatMessage)
-
-  const messages = dedupeById(mapped)
-    .filter((m) => m.moderationStatus !== 'hidden')
+  const historyMessages = rows.map(toChatMessage)
+  const messages = dedupeById([...historyMessages, ...liveMessages])
+    .map((message) => ({
+      ...message,
+      moderationStatus: moderationOverrides[message.id] ?? message.moderationStatus,
+    }))
+    .filter((message) => message.moderationStatus !== 'hidden')
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
   return (
     <ChatShell
-      headerStatus={<ResetCountdown resetAt={resetAt} />}
-      headerRight={<div />}
+      headerStatus={
+        <>
+          <ResetCountdown resetAt={resetAt} onZero={clearMessages} />
+          <PresenceCounter count={socketState.presenceCount} />
+          <ConnectionStatus status={socketState.status} />
+        </>
+      }
+      headerRight={
+        isAuthed ? (
+          <UserBadge nickname={socketState.nickname} onSignOut={signOut} />
+        ) : (
+          <JoinButton onGoogle={signInWithGoogle} onGitHub={signInWithGitHub} />
+        )
+      }
     >
       {history.isLoading ? (
         <Container size="sm" py="xl">
@@ -110,6 +170,20 @@ function ChatRoute() {
           loadingMore={history.isFetchingNextPage}
         />
       )}
+
+      {isAuthed ? (
+        <MessageInput
+          maxLength={maxLen}
+          cooldownWindowMs={cooldownWindowMs}
+          cooldownRemainingMs={socketState.cooldownRemainingMs}
+          muteRemainingMs={socketState.muteRemainingMs}
+          onSend={(content) => {
+            if (!socketState.nickname) return
+            addPendingMessage(content, socketState.nickname)
+            socketState.sendMessage(content)
+          }}
+        />
+      ) : null}
     </ChatShell>
   )
 }
