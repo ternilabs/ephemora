@@ -4,35 +4,31 @@ import { moderationApi } from '../lib/moderationApi'
 export function useModerationActions() {
   const queryClient = useQueryClient()
 
-  const invalidateReports = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['moderation', 'reports'] })
-  }
-
-  const invalidateBannedUsers = async () => {
-    await queryClient.invalidateQueries({ queryKey: ['moderation', 'banned-users'] })
+  const invalidate = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['moderation'] })
   }
 
   return {
     hideMessage: useMutation({
       mutationFn: (id: string) => moderationApi.hideMessage(id),
-      onSuccess: invalidateReports,
+      onSuccess: invalidate,
     }),
     restoreMessage: useMutation({
       mutationFn: (id: string) => moderationApi.restoreMessage(id),
-      onSuccess: invalidateReports,
+      onSuccess: invalidate,
     }),
     markReviewed: useMutation({
       mutationFn: (id: string) => moderationApi.markReviewed(id),
-      onSuccess: invalidateReports,
+      onSuccess: invalidate,
     }),
     banUser: useMutation({
       mutationFn: (args: { id: string; reason?: string }) =>
         moderationApi.banUser(args.id, args.reason),
-      onSuccess: invalidateBannedUsers,
+      onSuccess: invalidate,
     }),
     unbanUser: useMutation({
       mutationFn: (id: string) => moderationApi.unbanUser(id),
-      onSuccess: invalidateBannedUsers,
+      onSuccess: invalidate,
     }),
   }
 }
