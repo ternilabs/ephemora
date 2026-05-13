@@ -2,11 +2,13 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button, Center, Container, Loader, Stack, Text } from '@mantine/core'
+import { modals } from '@mantine/modals'
 import JoinButton from '../components/auth/JoinButton'
 import UserBadge from '../components/auth/UserBadge'
 import MessageInput from '../components/chat/MessageInput'
 import ChatShell from '../components/layout/ChatShell'
 import MessageList from '../components/chat/MessageList'
+import ReportMessageModal from '../components/modals/ReportMessageModal'
 import ConnectionStatus from '../components/status/ConnectionStatus'
 import PresenceCounter from '../components/status/PresenceCounter'
 import ResetCountdown from '../components/status/ResetCountdown'
@@ -14,6 +16,7 @@ import { useAuth } from '../hooks/useAuth'
 import { useBootstrap } from '../hooks/useBootstrap'
 import { useMessageHistory } from '../hooks/useMessageHistory'
 import { useMessages } from '../hooks/useMessages'
+import { useReportMessage } from '../hooks/useReportMessage'
 import { useSocket } from '../hooks/useSocket'
 import type { ChatMessage, MessageRow } from '../types/chat'
 
@@ -100,6 +103,7 @@ function ChatRoute() {
     onReset: handleReset,
     onRemovePending: removeMostRecentPending,
   })
+  const report = useReportMessage(socketState.socket)
 
   if (bootstrap.isLoading) {
     return (
@@ -143,6 +147,23 @@ function ChatRoute() {
     .filter((message) => message.moderationStatus !== 'hidden')
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
 
+  const openReport = (m: ChatMessage) => {
+    const modalId = modals.open({
+      title: 'Report message',
+      children: (
+        <ReportMessageModal
+          contentPreview={m.content}
+          submitting={report.isPending}
+          onCancel={() => modals.close(modalId)}
+          onSubmit={(reason) => {
+            report.mutate(reason ? { messageId: m.id, reason } : { messageId: m.id })
+            modals.close(modalId)
+          }}
+        />
+      ),
+    })
+  }
+
   return (
     <ChatShell
       headerStatus={
@@ -183,8 +204,8 @@ function ChatRoute() {
       ) : (
         <MessageList
           messages={messages}
-          canReport={false}
-          onReport={() => {}}
+          canReport={isAuthed}
+          onReport={openReport}
           onLoadMore={() => history.fetchNextPage()}
           hasMore={!!history.hasNextPage}
           loadingMore={history.isFetchingNextPage}
