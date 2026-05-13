@@ -4,9 +4,10 @@ import { useSession } from './useSession'
 
 export function useModerator() {
   const { data: session, isLoading: sessionLoading } = useSession()
+  const userId = session?.user.id ?? 'anonymous'
 
   const { isError, isLoading } = useQuery({
-    queryKey: ['moderation', 'access-check'],
+    queryKey: ['moderation', 'access-check', userId],
     queryFn: () => moderationApi.getReports(),
     enabled: !!session,
     retry: false,
