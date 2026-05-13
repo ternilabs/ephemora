@@ -6,12 +6,13 @@ import MessageBubble from './MessageBubble'
 export default function MessageList(props: {
   messages: ChatMessage[]
   canReport: boolean
+  bottomInsetPx: number
   onReport: (message: ChatMessage) => void
   onLoadMore: () => void | Promise<unknown>
   hasMore: boolean
   loadingMore: boolean
 }) {
-  const { messages, canReport, onReport, onLoadMore, hasMore, loadingMore } = props
+  const { messages, canReport, bottomInsetPx, onReport, onLoadMore, hasMore, loadingMore } = props
   const ref = useRef<HTMLDivElement | null>(null)
   const loadLockedRef = useRef(false)
   const loadingMoreRef = useRef(loadingMore)
@@ -80,7 +81,7 @@ export default function MessageList(props: {
     <Box
       ref={ref}
       style={{
-        height: 'calc(100dvh - 56px - 44px - 84px)',
+        height: `calc(100dvh - 56px - 44px - ${bottomInsetPx}px)`,
         overflowY: 'auto',
       }}
       px="md"

@@ -155,8 +155,11 @@ function ChatRoute() {
           contentPreview={m.content}
           submitting={report.isPending}
           onCancel={() => modals.close(id)}
-          onSubmit={(reason = '') => {
-            report.mutate({ messageId: m.id, reason })
+          onSubmit={(reason) => {
+            report.mutate({
+              messageId: m.id,
+              ...(reason !== undefined ? { reason } : {}),
+            })
             modals.close(id)
           }}
         />
@@ -204,7 +207,8 @@ function ChatRoute() {
       ) : (
         <MessageList
           messages={messages}
-          canReport={isAuthed}
+          canReport={isAuthed && socketState.status === 'connected'}
+          bottomInsetPx={isAuthed ? 84 : 0}
           onReport={openReport}
           onLoadMore={() => history.fetchNextPage()}
           hasMore={!!history.hasNextPage}
