@@ -1,8 +1,9 @@
 import { Anchor, Box, Text } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
 
-export default function LeftSidebar(props: { presenceCount?: number | null }) {
+export default function LeftSidebar(props: { presenceCount?: number | null; showPresence?: boolean }) {
   const hasPresence = typeof props.presenceCount === 'number'
+  const shouldShowPresence = props.showPresence ?? false
   const presenceLabel = hasPresence ? `${props.presenceCount} online` : 'online'
 
   return (
@@ -14,12 +15,7 @@ export default function LeftSidebar(props: { presenceCount?: number | null }) {
           <Text className="ep3-topic-name">Global</Text>
           <Text className="ep3-topic-desc">Official global server</Text>
         </Box>
-        <Text className="ep3-topic-online">
-          <Text span className="ep3-brand-dot" aria-hidden>
-            ●
-          </Text>{' '}
-          {presenceLabel}
-        </Text>
+        {shouldShowPresence ? <Text className="ep3-topic-online">{presenceLabel}</Text> : null}
       </Box>
 
       <Box className="ep3-topic-skel-row" aria-hidden>

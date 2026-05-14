@@ -16,6 +16,7 @@ export type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'waking
 
 interface UseSocketOptions {
   token: string
+  userId?: string
   enabled: boolean
   cooldownSeconds: number
   onMessageNew: (payload: MessageNewPayload) => void
@@ -24,12 +25,50 @@ interface UseSocketOptions {
   onRemovePending: () => void
 }
 
+function utcDayStamp(date: Date): string {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
+}
+
+function getNicknameCacheKey(userId: string): string {
+  return `ephemora:nickname:${userId}:${utcDayStamp(new Date())}`
+}
+
+function readCachedNickname(userId?: string): string | null {
+  if (!userId || typeof window === 'undefined') return null
+
+  try {
+    return window.localStorage.getItem(getNicknameCacheKey(userId))
+  } catch {
+    return null
+  }
+}
+
+function writeCachedNickname(userId: string | undefined, nickname: string): void {
+  if (!userId || typeof window === 'undefined') return
+
+  try {
+    window.localStorage.setItem(getNicknameCacheKey(userId), nickname)
+  } catch {
+    // no-op
+  }
+}
+
+function clearCachedNickname(userId?: string): void {
+  if (!userId || typeof window === 'undefined') return
+
+  try {
+    window.localStorage.removeItem(getNicknameCacheKey(userId))
+  } catch {
+    // no-op
+  }
+}
+
 export function useSocket(options: UseSocketOptions) {
-  const { token, enabled, cooldownSeconds, onMessageNew, onMessageModerated, onReset, onRemovePending } = options
+  const { token, userId, enabled, cooldownSeconds, onMessageNew, onMessageModerated, onReset, onRemovePending } = options
   const isAuthed = token.length > 0
 
   const [status, setStatus] = useState<SocketStatus>('disconnected')
-  const [nickname, setNickname] = useState<string | null>(null)
+  const [nickname, setNickname] = useState<string | null>(() => readCachedNickname(userId))
   const [presenceCount, setPresenceCount] = useState(0)
   const [cooldownUntilMs, setCooldownUntilMs] = useState(0)
   const [muteUntilMs, setMuteUntilMs] = useState(0)
@@ -38,11 +77,22 @@ export function useSocket(options: UseSocketOptions) {
   const mountedAtRef = useRef(0)
   const unavailableTimerRef = useRef<number | null>(null)
   const tickerIntervalRef = useRef<number | null>(null)
+  const onMessageNewRef = useRef(onMessageNew)
+  const onMessageModeratedRef = useRef(onMessageModerated)
+  const onResetRef = useRef(onReset)
+  const onRemovePendingRef = useRef(onRemovePending)
 
   const socket: Socket | null = useMemo(() => {
     if (!enabled) return null
     return getSocket(token)
   }, [enabled, token])
+
+  useEffect(() => {
+    onMessageNewRef.current = onMessageNew
+    onMessageModeratedRef.current = onMessageModerated
+    onResetRef.current = onReset
+    onRemovePendingRef.current = onRemovePending
+  }, [onMessageNew, onMessageModerated, onReset, onRemovePending])
 
   useEffect(() => {
     const clearTicker = () => {
@@ -111,14 +161,21 @@ export function useSocket(options: UseSocketOptions) {
 
     const onIdentity = (payload: UserIdentityPayload) => {
       setNickname(payload.nickname)
+      writeCachedNickname(userId, payload.nickname)
     }
 
     const onPresence = (payload: RoomPresencePayload) => {
       setPresenceCount(payload.count)
     }
+    const onMessageNewEvent = (payload: MessageNewPayload) => {
+      onMessageNewRef.current(payload)
+    }
+    const onMessageModeratedEvent = (payload: MessageModeratedPayload) => {
+      onMessageModeratedRef.current(payload)
+    }
 
     const onCooldown = (payload: UserCooldownPayload) => {
-      onRemovePending()
+      onRemovePendingRef.current()
       setCooldownUntilMs(Date.now() + payload.remainingMs)
       notifications.show({
         color: 'yellow',
@@ -128,7 +185,7 @@ export function useSocket(options: UseSocketOptions) {
     }
 
     const onMuted = (payload: UserMutedPayload) => {
-      onRemovePending()
+      onRemovePendingRef.current()
       setMuteUntilMs(Date.now() + payload.muteRemainingMs)
       notifications.show({
         color: 'red',
@@ -138,7 +195,7 @@ export function useSocket(options: UseSocketOptions) {
     }
 
     const onSystemError = (payload: SystemErrorPayload) => {
-      onRemovePending()
+      onRemovePendingRef.current()
 
       if (payload.code === 'banned') {
         notifications.show({
@@ -175,8 +232,9 @@ export function useSocket(options: UseSocketOptions) {
     }
 
     const onResetEvent = () => {
-      onReset()
+      onResetRef.current()
       setNickname(null)
+      clearCachedNickname(userId)
       setPresenceCount(0)
       notifications.show({
         color: 'green',
@@ -190,8 +248,8 @@ export function useSocket(options: UseSocketOptions) {
     socket.on('connect_error', onConnectError)
     socket.on('user:identity', onIdentity)
     socket.on('room:presence', onPresence)
-    socket.on('message:new', onMessageNew)
-    socket.on('message:moderated', onMessageModerated)
+    socket.on('message:new', onMessageNewEvent)
+    socket.on('message:moderated', onMessageModeratedEvent)
     socket.on('chat:reset', onResetEvent)
     socket.on('user:cooldown', onCooldown)
     socket.on('user:muted', onMuted)
@@ -207,8 +265,8 @@ export function useSocket(options: UseSocketOptions) {
       socket.off('connect_error', onConnectError)
       socket.off('user:identity', onIdentity)
       socket.off('room:presence', onPresence)
-      socket.off('message:new', onMessageNew)
-      socket.off('message:moderated', onMessageModerated)
+      socket.off('message:new', onMessageNewEvent)
+      socket.off('message:moderated', onMessageModeratedEvent)
       socket.off('chat:reset', onResetEvent)
       socket.off('user:cooldown', onCooldown)
       socket.off('user:muted', onMuted)
@@ -224,7 +282,7 @@ export function useSocket(options: UseSocketOptions) {
       setPresenceCount(0)
       disconnectSocket()
     }
-  }, [socket, onMessageNew, onMessageModerated, onReset, onRemovePending])
+  }, [socket, userId])
 
   const sendMessage = useCallback(
     (content: string) => {

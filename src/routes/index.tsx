@@ -71,6 +71,7 @@ function ChatRoute() {
   const { session, signInWithGoogle, signInWithGitHub, signOut } = useAuth()
   const moderatorAccess = useModeratorAccessCache()
   const token = session?.access_token ?? ''
+  const userId = session?.user.id
   const isAuthed = token.length > 0
 
   const historyLimit = bootstrap.data?.limits.historyLimit ?? 50
@@ -116,6 +117,7 @@ function ChatRoute() {
 
   const socketState = useSocket({
     token,
+    ...(userId ? { userId } : {}),
     enabled: bootstrap.isSuccess,
     cooldownSeconds: bootstrap.data?.limits.messageCooldownSeconds ?? 5,
     onMessageNew: confirmOrAddMessage,
@@ -199,7 +201,7 @@ function ChatRoute() {
 
   return (
     <Box className="ep3-root">
-      <LeftSidebar presenceCount={socketState.presenceCount} />
+      <LeftSidebar presenceCount={socketState.presenceCount} showPresence />
 
       <Box className="ep3-middle">
         <Box className="ep3-mid-header">
@@ -247,7 +249,7 @@ function ChatRoute() {
             cooldownWindowMs={cooldownWindowMs}
             cooldownRemainingMs={socketState.cooldownRemainingMs}
             muteRemainingMs={socketState.muteRemainingMs}
-            nickname={socketState.nickname}
+            nickname={socketState.nickname ?? (isAuthed ? 'Connecting…' : null)}
             sendDisabled={socketState.status !== 'connected'}
             showModeratorAction={moderatorAccess.isModerator && !moderatorAccess.isChecking}
             onModerator={() => navigate({ to: '/moderation' })}

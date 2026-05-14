@@ -6,7 +6,7 @@ import LeftSidebar from './LeftSidebar'
 export default function TwoPanelPageLayout(props: { title: string; children: ReactNode }) {
   return (
     <Box className="ep3-root ep3-root-no-right">
-      <LeftSidebar />
+      <LeftSidebar showPresence={false} />
 
       <Box className="ep3-middle">
         <Box className="ep3-mid-header">
