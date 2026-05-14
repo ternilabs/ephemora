@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Container, Stack, Text, Title } from '@mantine/core'
-import ChatShell from '../components/layout/ChatShell'
+import { Stack, Text, Title } from '@mantine/core'
+import TwoPanelPageLayout from '../components/layout/TwoPanelPageLayout'
 
 export const Route = createFileRoute('/terms')({
   head: () => ({
@@ -11,13 +11,15 @@ export const Route = createFileRoute('/terms')({
 
 function TermsPage() {
   return (
-    <ChatShell>
-      <Container size="sm" py="xl">
-        <Stack gap="md">
-          <Title order={2}>Terms</Title>
-          <Text>Be respectful. Report harmful content. Moderation is automatic-first.</Text>
-        </Stack>
-      </Container>
-    </ChatShell>
+    <TwoPanelPageLayout title="Terms">
+      <Stack className="ep3-static-content" gap="lg">
+        <Title order={2}>Terms</Title>
+        <Text>Be respectful. Harassment, hate speech, and targeted abuse are not allowed.</Text>
+        <Text>
+          Use reporting tools when content crosses policy boundaries. Moderation is automated-first
+          with human escalation.
+        </Text>
+      </Stack>
+    </TwoPanelPageLayout>
   )
 }

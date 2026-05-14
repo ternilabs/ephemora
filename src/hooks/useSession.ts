@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { type QueryClient, useQuery, useQueryClient } from '@tanstack/react-query'
 import type { Session } from '@supabase/supabase-js'
+import { getModerationAccessQueryKey, moderationAccessQueryKey } from '../lib/moderationAccess'
 import { supabase } from '../lib/supabase'
 
 const sessionQueryKey = ['session'] as const
@@ -17,14 +18,50 @@ function subscribeToSession(queryClient: QueryClient) {
   }
 
   let previousUserId = queryClient.getQueryData<Session | null>(sessionQueryKey)?.user.id ?? null
+  let moderationPurgeQueue = Promise.resolve()
 
-  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+  const purgeModerationCaches = (
+    accessQueryKey?: ReturnType<typeof getModerationAccessQueryKey>,
+  ): Promise<void> => {
+    moderationPurgeQueue = moderationPurgeQueue
+      .catch((error: unknown) => {
+        if (import.meta.env.DEV) {
+          console.warn('Failed to purge moderation cache queue', error)
+        }
+      })
+      .then(async () => {
+        await Promise.all([
+          queryClient.cancelQueries({ queryKey: moderationAccessQueryKey }),
+          queryClient.cancelQueries({ queryKey: ['moderation'] }),
+        ])
+
+        if (accessQueryKey) {
+          queryClient.removeQueries({ queryKey: accessQueryKey, exact: true })
+        } else {
+          queryClient.removeQueries({ queryKey: moderationAccessQueryKey })
+        }
+        queryClient.removeQueries({ queryKey: ['moderation'] })
+      })
+
+    return moderationPurgeQueue
+  }
+
+  const { data } = supabase.auth.onAuthStateChange((event, session) => {
     queryClient.setQueryData(sessionQueryKey, session)
 
     const currentUserId = session?.user.id ?? null
+
     if (previousUserId !== currentUserId) {
-      queryClient.removeQueries({ queryKey: ['moderation'] })
       previousUserId = currentUserId
+      void purgeModerationCaches()
+    }
+
+    if (
+      previousUserId === currentUserId &&
+      currentUserId &&
+      (event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED')
+    ) {
+      void purgeModerationCaches(getModerationAccessQueryKey(currentUserId))
     }
   })
 

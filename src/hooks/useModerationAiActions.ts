@@ -5,7 +5,7 @@ import type { ModerationAction } from '../types/moderation'
 export function useModerationAiActions(enabled: boolean) {
   return useQuery({
     queryKey: ['moderation', 'ai-actions'],
-    queryFn: (): Promise<ModerationAction[]> => moderationApi.getAiActions(),
+    queryFn: ({ signal }): Promise<ModerationAction[]> => moderationApi.getAiActions(signal),
     enabled,
     staleTime: 10_000,
   })

@@ -6,6 +6,7 @@ export const mantineTheme = createTheme({
   fontFamilyMonospace: "'Geist Mono Variable', monospace",
   defaultRadius: 0,
   primaryColor: 'green',
+  black: '#1C1917',
   colors: {
     green: [
       '#f0fdf4',
@@ -21,8 +22,15 @@ export const mantineTheme = createTheme({
     ],
   },
   components: {
-    Button: { defaultProps: { radius: '1.2px' } },
+    Button: {
+      defaultProps: { radius: '1.2px', fw: 500 },
+    },
     TextInput: { defaultProps: { radius: 0 } },
     Textarea: { defaultProps: { radius: 0 } },
+    Anchor: {
+      defaultProps: {
+        underline: 'never',
+      },
+    },
   },
 })

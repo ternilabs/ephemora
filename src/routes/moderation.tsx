@@ -3,39 +3,50 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import AiActionsTab from '../components/moderation/AiActionsTab'
 import BannedUsersTab from '../components/moderation/BannedUsersTab'
-import ModerationShell from '../components/moderation/ModerationShell'
+import TwoPanelPageLayout from '../components/layout/TwoPanelPageLayout'
 import ReviewQueueTab from '../components/moderation/ReviewQueueTab'
 import { useModerator } from '../hooks/useModerator'
 
 export const Route = createFileRoute('/moderation')({
+  head: () => ({
+    meta: [{ title: 'Moderation | Ephemora' }],
+  }),
   component: ModerationRoute,
 })
 
 type ModerationTab = 'review' | 'ai' | 'banned'
 
 function ModerationRoute() {
-  const { isModerator, isLoading, isForbidden, isLoadFailed, isRetrying, retry } = useModerator()
+  const { isModerator, isLoading, isUnauthorized, isForbidden, isLoadFailed, isRetrying, retry } = useModerator()
   const [activeTab, setActiveTab] = useState<ModerationTab>('review')
 
   if (isLoading) {
     return (
-      <ModerationShell>
+      <TwoPanelPageLayout title="Moderation">
         <Text>Checking access…</Text>
-      </ModerationShell>
+      </TwoPanelPageLayout>
+    )
+  }
+
+  if (isUnauthorized) {
+    return (
+      <TwoPanelPageLayout title="Moderation">
+        <Text>401 — Sign in required. Please sign in again.</Text>
+      </TwoPanelPageLayout>
     )
   }
 
   if (isForbidden) {
     return (
-      <ModerationShell>
+      <TwoPanelPageLayout title="Moderation">
         <Text>403 — Moderator access required.</Text>
-      </ModerationShell>
+      </TwoPanelPageLayout>
     )
   }
 
   if (isLoadFailed) {
     return (
-      <ModerationShell>
+      <TwoPanelPageLayout title="Moderation">
         <Stack gap="sm">
           <Text>Failed to verify moderation access.</Text>
           <Button
@@ -47,21 +58,22 @@ function ModerationRoute() {
             Retry
           </Button>
         </Stack>
-      </ModerationShell>
+      </TwoPanelPageLayout>
     )
   }
 
   if (!isModerator) {
     return (
-      <ModerationShell>
+      <TwoPanelPageLayout title="Moderation">
         <Text>Failed to verify moderation access.</Text>
-      </ModerationShell>
+      </TwoPanelPageLayout>
     )
   }
 
   return (
-    <ModerationShell>
+    <TwoPanelPageLayout title="Moderation">
       <Tabs
+        className="ep3-moderation-tabs"
         value={activeTab}
         onChange={(value) => setActiveTab((value as ModerationTab | null) ?? 'review')}
       >
@@ -81,6 +93,6 @@ function ModerationRoute() {
           <BannedUsersTab enabled={activeTab === 'banned'} />
         </Tabs.Panel>
       </Tabs>
-    </ModerationShell>
+    </TwoPanelPageLayout>
   )
 }

@@ -58,12 +58,17 @@ async function moderationFetch<T>(path: string, options?: RequestInit): Promise<
 }
 
 export const moderationApi = {
-  getReports: async () => {
-    const reports = await moderationFetch<ModerationReport[]>('/moderation/reports')
+  getReports: async (signal?: AbortSignal) => {
+    const reports = await moderationFetch<ModerationReport[]>(
+      '/moderation/reports',
+      signal ? { signal } : undefined,
+    )
     return assertValidReportUserIds(reports)
   },
-  getAiActions: () => moderationFetch<ModerationAction[]>('/moderation/ai-actions'),
-  getBannedUsers: () => moderationFetch<BannedUser[]>('/moderation/banned-users'),
+  getAiActions: (signal?: AbortSignal) =>
+    moderationFetch<ModerationAction[]>('/moderation/ai-actions', signal ? { signal } : undefined),
+  getBannedUsers: (signal?: AbortSignal) =>
+    moderationFetch<BannedUser[]>('/moderation/banned-users', signal ? { signal } : undefined),
   hideMessage: (id: string) => moderationFetch(`/moderation/messages/${id}/hide`, { method: 'POST' }),
   restoreMessage: (id: string) =>
     moderationFetch(`/moderation/messages/${id}/restore`, { method: 'POST' }),

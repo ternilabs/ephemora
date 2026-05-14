@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { Container, Stack, Text, Title } from '@mantine/core'
-import ChatShell from '../components/layout/ChatShell'
+import { Stack, Text, Title } from '@mantine/core'
+import TwoPanelPageLayout from '../components/layout/TwoPanelPageLayout'
 
 export const Route = createFileRoute('/about')({
   head: () => ({
@@ -11,16 +11,18 @@ export const Route = createFileRoute('/about')({
 
 function AboutPage() {
   return (
-    <ChatShell>
-      <Container size="sm" py="xl">
-        <Stack gap="md">
-          <Title order={2}>About</Title>
-          <Text>
-            Ephemora is a daily-reset global chatroom where messages disappear and nicknames change
-            every day.
-          </Text>
-        </Stack>
-      </Container>
-    </ChatShell>
+    <TwoPanelPageLayout title="About">
+      <Stack className="ep3-static-content" gap="lg">
+        <Title order={2}>Ephemora</Title>
+        <Text>
+          Ephemora is a daily-reset global chatroom where every message is ephemeral and every
+          nickname rotates.
+        </Text>
+        <Text>
+          The product is designed for honest, low-pressure conversations without permanent social
+          profiles.
+        </Text>
+      </Stack>
+    </TwoPanelPageLayout>
   )
 }

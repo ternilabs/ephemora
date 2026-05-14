@@ -5,16 +5,8 @@ import {
   Scripts,
   createRootRoute,
 } from '@tanstack/react-router'
-import { Suspense, lazy } from 'react'
+import { Stack, Text, Title } from '@mantine/core'
 import { homeLinkOptions } from './-navigation'
-
-const TanStackRouterDevtools = import.meta.env.DEV
-  ? lazy(() =>
-      import('@tanstack/react-router-devtools').then((module) => ({
-        default: module.TanStackRouterDevtools,
-      })),
-    )
-  : null
 
 function RootLayout() {
   return (
@@ -22,11 +14,6 @@ function RootLayout() {
       <HeadContent />
       <Outlet />
       <Scripts />
-      {TanStackRouterDevtools ? (
-        <Suspense fallback={null}>
-          <TanStackRouterDevtools />
-        </Suspense>
-      ) : null}
     </>
   )
 }
@@ -34,11 +21,11 @@ function RootLayout() {
 function RootNotFound() {
   return (
     <main className="page">
-      <h1>Page not found</h1>
-      <p>The page you requested does not exist.</p>
-      <p>
+      <Stack gap="sm">
+        <Title order={2}>Page not found</Title>
+        <Text>The page you requested does not exist.</Text>
         <Link {...homeLinkOptions}>Return to home</Link>
-      </p>
+      </Stack>
     </main>
   )
 }

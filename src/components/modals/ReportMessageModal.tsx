@@ -4,10 +4,23 @@ import { useState } from 'react'
 export default function ReportMessageModal(props: {
   contentPreview: string
   onCancel: () => void
-  onSubmit: (reason?: string) => void
-  submitting?: boolean
+  onSubmit: (reason?: string) => void | Promise<void>
 }) {
   const [reason, setReason] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+
+  const submit = async () => {
+    if (submitting) {
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      await props.onSubmit(reason.trim() || undefined)
+    } finally {
+      setSubmitting(false)
+    }
+  }
 
   return (
     <Stack gap="sm">
@@ -25,10 +38,10 @@ export default function ReportMessageModal(props: {
       />
 
       <Group justify="flex-end">
-        <Button variant="default" onClick={props.onCancel}>
+        <Button variant="default" onClick={props.onCancel} disabled={submitting}>
           Cancel
         </Button>
-        <Button loading={props.submitting ?? false} onClick={() => props.onSubmit(reason.trim() || undefined)}>
+        <Button loading={submitting} disabled={submitting} onClick={() => void submit()}>
           Submit report
         </Button>
       </Group>

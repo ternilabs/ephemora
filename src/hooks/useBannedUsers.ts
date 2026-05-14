@@ -5,7 +5,7 @@ import type { BannedUser } from '../types/moderation'
 export function useBannedUsers(enabled: boolean) {
   return useQuery({
     queryKey: ['moderation', 'banned-users'],
-    queryFn: (): Promise<BannedUser[]> => moderationApi.getBannedUsers(),
+    queryFn: ({ signal }): Promise<BannedUser[]> => moderationApi.getBannedUsers(signal),
     enabled,
     staleTime: 10_000,
   })
