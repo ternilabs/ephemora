@@ -1,5 +1,5 @@
 import { Box, Stack, Text } from '@mantine/core'
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef } from 'react'
 import type { ChatMessage } from '../../types/chat'
 import MessageBubble from './MessageBubble'
 
@@ -33,19 +33,41 @@ function getDayDividerLabel(messages: ChatMessage[]): string {
 
 export default function MessageList(props: {
   messages: ChatMessage[]
-  currentNickname?: string | null
+  currentAuthorUserId: string | undefined
+  currentPendingAuthorUserId: string | undefined
   canReport: boolean
   onReport: (message: ChatMessage) => void
   onLoadMore: () => void | Promise<unknown>
   hasMore: boolean
   loadingMore: boolean
 }) {
-  const { messages, currentNickname, canReport, onReport, onLoadMore, hasMore, loadingMore } = props
+  const {
+    messages,
+    currentAuthorUserId,
+    currentPendingAuthorUserId,
+    canReport,
+    onReport,
+    onLoadMore,
+    hasMore,
+    loadingMore,
+  } = props
   const dayDividerLabel = getDayDividerLabel(messages)
   const ref = useRef<HTMLDivElement | null>(null)
   const loadLockedRef = useRef(false)
   const loadingMoreRef = useRef(loadingMore)
   const unlockTimerRef = useRef<number | null>(null)
+  const noOverflowLoadForCountRef = useRef<number | null>(null)
+  const shouldAutoFollowRef = useRef(true)
+  const lastMessageIdRef = useRef<string | null>(null)
+
+  const isPendingOwnMessage = useCallback(
+    (authorId: string) => {
+      if (currentPendingAuthorUserId && authorId === currentPendingAuthorUserId) return true
+      if (currentAuthorUserId && authorId === currentAuthorUserId) return true
+      return false
+    },
+    [currentPendingAuthorUserId, currentAuthorUserId],
+  )
 
   useEffect(() => {
     loadingMoreRef.current = loadingMore
@@ -57,6 +79,11 @@ export default function MessageList(props: {
   useEffect(() => {
     const el = ref.current
     if (!el) return
+
+    const syncFollowState = () => {
+      const distanceFromBottom = el.scrollHeight - (el.scrollTop + el.clientHeight)
+      shouldAutoFollowRef.current = distanceFromBottom <= 80
+    }
 
     const maybeLoadMore = () => {
       if (!hasMore || loadingMore || loadLockedRef.current) return
@@ -89,14 +116,74 @@ export default function MessageList(props: {
       }, 300)
     }
 
-    const onScroll = () => maybeLoadMore()
+    const onScroll = () => {
+      syncFollowState()
+      maybeLoadMore()
+    }
     el.addEventListener('scroll', onScroll)
-    maybeLoadMore()
+    syncFollowState()
 
     return () => {
       el.removeEventListener('scroll', onScroll)
     }
-  }, [hasMore, loadingMore, messages.length, onLoadMore])
+  }, [hasMore, loadingMore, onLoadMore])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || !hasMore || loadingMore || loadLockedRef.current) return
+    if (noOverflowLoadForCountRef.current === messages.length) return
+
+    const noOverflow = el.scrollHeight <= el.clientHeight
+    if (!noOverflow) return
+
+    noOverflowLoadForCountRef.current = messages.length
+    loadLockedRef.current = true
+    const result = onLoadMore()
+
+    if (result && typeof result.finally === 'function') {
+      result.finally(() => {
+        if (!loadingMoreRef.current) {
+          loadLockedRef.current = false
+        }
+      })
+      return
+    }
+
+    if (unlockTimerRef.current) {
+      window.clearTimeout(unlockTimerRef.current)
+    }
+
+    unlockTimerRef.current = window.setTimeout(() => {
+      if (!loadingMoreRef.current) {
+        loadLockedRef.current = false
+      }
+      unlockTimerRef.current = null
+    }, 300)
+  }, [messages.length, hasMore, loadingMore, onLoadMore])
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el || messages.length === 0) return
+
+    const lastMessage = messages[messages.length - 1]
+    if (!lastMessage) return
+
+    const lastMessageId = lastMessage.id
+    const lastMessageChanged = lastMessageId !== lastMessageIdRef.current
+    lastMessageIdRef.current = lastMessageId
+
+    if (!lastMessageChanged) return
+
+    const isPendingLastMessage = lastMessage.deliveryStatus === 'pending'
+    const isOwnLastMessage = isPendingLastMessage
+      ? isPendingOwnMessage(lastMessage.authorUserId)
+      : !!currentAuthorUserId && lastMessage.authorUserId === currentAuthorUserId
+
+    if (isOwnLastMessage || shouldAutoFollowRef.current) {
+      el.scrollTop = el.scrollHeight
+      shouldAutoFollowRef.current = true
+    }
+  }, [messages, currentAuthorUserId, isPendingOwnMessage])
 
   useEffect(() => {
     return () => {
@@ -115,15 +202,22 @@ export default function MessageList(props: {
       </Box>
 
       <Stack gap={14}>
-        {messages.map((m) => (
+        {messages.map((m) => {
+          const isPendingMessage = m.deliveryStatus === 'pending'
+          const isOwn = isPendingMessage
+            ? isPendingOwnMessage(m.authorUserId)
+            : !!currentAuthorUserId && m.authorUserId === currentAuthorUserId
+
+          return (
           <MessageBubble
             key={m.id}
             message={m}
-            isOwn={currentNickname !== null && currentNickname !== undefined && m.nickname === currentNickname}
+            isOwn={isOwn}
             canReport={canReport}
             onReport={() => onReport(m)}
           />
-        ))}
+          )
+        })}
       </Stack>
     </Box>
   )

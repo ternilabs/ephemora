@@ -29,35 +29,38 @@ function utcDayStamp(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`
 }
 
-function getNicknameCacheKey(userId: string): string {
-  return `ephemora:nickname:${userId}:${utcDayStamp(new Date())}`
+interface CachedIdentity {
+  nickname: string
+  authorUserId: string
 }
 
-function readCachedNickname(userId?: string): string | null {
+function getIdentityCacheKey(userId: string): string {
+  return `ephemora:identity:${userId}:${utcDayStamp(new Date())}`
+}
+
+function readCachedIdentity(userId?: string): CachedIdentity | null {
   if (!userId || typeof window === 'undefined') return null
 
   try {
-    return window.localStorage.getItem(getNicknameCacheKey(userId))
+    const raw = window.localStorage.getItem(getIdentityCacheKey(userId))
+    if (!raw) return null
+
+    const parsed = JSON.parse(raw) as Partial<CachedIdentity>
+    if (typeof parsed.nickname !== 'string' || typeof parsed.authorUserId !== 'string') {
+      return null
+    }
+
+    return { nickname: parsed.nickname, authorUserId: parsed.authorUserId }
   } catch {
     return null
   }
 }
 
-function writeCachedNickname(userId: string | undefined, nickname: string): void {
+function writeCachedIdentity(userId: string | undefined, identity: CachedIdentity): void {
   if (!userId || typeof window === 'undefined') return
 
   try {
-    window.localStorage.setItem(getNicknameCacheKey(userId), nickname)
-  } catch {
-    // no-op
-  }
-}
-
-function clearCachedNickname(userId?: string): void {
-  if (!userId || typeof window === 'undefined') return
-
-  try {
-    window.localStorage.removeItem(getNicknameCacheKey(userId))
+    window.localStorage.setItem(getIdentityCacheKey(userId), JSON.stringify(identity))
   } catch {
     // no-op
   }
@@ -66,9 +69,11 @@ function clearCachedNickname(userId?: string): void {
 export function useSocket(options: UseSocketOptions) {
   const { token, userId, enabled, cooldownSeconds, onMessageNew, onMessageModerated, onReset, onRemovePending } = options
   const isAuthed = token.length > 0
+  const cachedIdentity = useMemo(() => readCachedIdentity(userId), [userId])
 
   const [status, setStatus] = useState<SocketStatus>('disconnected')
-  const [nickname, setNickname] = useState<string | null>(() => readCachedNickname(userId))
+  const [nickname, setNickname] = useState<string | null>(() => cachedIdentity?.nickname ?? null)
+  const [authorUserId, setAuthorUserId] = useState<string | null>(() => cachedIdentity?.authorUserId ?? null)
   const [presenceCount, setPresenceCount] = useState(0)
   const [cooldownUntilMs, setCooldownUntilMs] = useState(0)
   const [muteUntilMs, setMuteUntilMs] = useState(0)
@@ -142,7 +147,6 @@ export function useSocket(options: UseSocketOptions) {
 
     const onDisconnect = () => {
       setStatus('disconnected')
-      setNickname(null)
       setPresenceCount(0)
     }
 
@@ -161,11 +165,16 @@ export function useSocket(options: UseSocketOptions) {
 
     const onIdentity = (payload: UserIdentityPayload) => {
       setNickname(payload.nickname)
-      writeCachedNickname(userId, payload.nickname)
+      setAuthorUserId(payload.authorUserId)
+      writeCachedIdentity(userId, {
+        nickname: payload.nickname,
+        authorUserId: payload.authorUserId,
+      })
     }
 
     const onPresence = (payload: RoomPresencePayload) => {
-      setPresenceCount(payload.count)
+      const loggedInCount = payload.loggedInCount ?? payload.authenticatedCount ?? payload.count
+      setPresenceCount(loggedInCount)
     }
     const onMessageNewEvent = (payload: MessageNewPayload) => {
       onMessageNewRef.current(payload)
@@ -233,8 +242,6 @@ export function useSocket(options: UseSocketOptions) {
 
     const onResetEvent = () => {
       onResetRef.current()
-      setNickname(null)
-      clearCachedNickname(userId)
       setPresenceCount(0)
       notifications.show({
         color: 'green',
@@ -279,6 +286,7 @@ export function useSocket(options: UseSocketOptions) {
 
       setStatus('disconnected')
       setNickname(null)
+      setAuthorUserId(null)
       setPresenceCount(0)
       disconnectSocket()
     }
@@ -312,10 +320,14 @@ export function useSocket(options: UseSocketOptions) {
     [socket, isAuthed, status, cooldownSeconds],
   )
 
+  const effectiveNickname = nickname ?? cachedIdentity?.nickname ?? null
+  const effectiveAuthorUserId = authorUserId ?? cachedIdentity?.authorUserId ?? null
+
   return {
     socket,
     status,
-    nickname,
+    nickname: effectiveNickname,
+    authorUserId: effectiveAuthorUserId,
     presenceCount,
     cooldownRemainingMs: Math.max(0, cooldownUntilMs - nowMs),
     muteRemainingMs: Math.max(0, muteUntilMs - nowMs),

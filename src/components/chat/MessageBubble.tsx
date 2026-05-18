@@ -1,4 +1,5 @@
-import { Button, Group, Stack, Text } from '@mantine/core'
+import { Group, Stack, Text, UnstyledButton } from '@mantine/core'
+import { Flag } from 'lucide-react'
 import clsx from 'clsx'
 import type { ChatMessage } from '../../types/chat'
 import { formatTime } from '../../utils/formatTime'
@@ -26,6 +27,16 @@ export default function MessageBubble(props: {
       <Group gap={6} className={clsx('ep3-msg-top', { 'ep3-msg-top-own': props.isOwn })} wrap="nowrap">
         <Text className={clsx('ep3-msg-author', { 'ep3-msg-author-own': props.isOwn })}>{m.nickname}</Text>
         <Text className="ep3-msg-time">{formatTime(m.createdAt)}</Text>
+        {!props.isOwn ? (
+          <UnstyledButton
+            className="ep3-msg-report-icon"
+            aria-label={reportLabel}
+            disabled={!props.canReport || isPending}
+            onClick={props.onReport}
+          >
+            <Flag size={12} strokeWidth={1.75} />
+          </UnstyledButton>
+        ) : null}
       </Group>
 
       <div
@@ -41,16 +52,6 @@ export default function MessageBubble(props: {
       <Group gap={8} className="ep3-msg-actions" wrap="nowrap">
         {isPending ? <Text className="ep3-msg-pill">Sending…</Text> : null}
         {isUnderReview ? <Text className="ep3-msg-review-tag">● Under review</Text> : null}
-        <Button
-          className="ep3-msg-report-btn"
-          variant="subtle"
-          size="compact-xs"
-          aria-label={reportLabel}
-          disabled={!props.canReport || isPending}
-          onClick={props.onReport}
-        >
-          Report
-        </Button>
       </Group>
     </Stack>
   )

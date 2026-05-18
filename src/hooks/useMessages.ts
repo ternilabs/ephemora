@@ -34,12 +34,13 @@ export function useMessages() {
     setModerationOverrides({})
   }, [])
 
-  const addPendingMessage = useCallback((content: string, nickname: string) => {
+  const addPendingMessage = useCallback((content: string, nickname: string, authorUserId: string) => {
     const id = pendingId()
     const message: ChatMessage = {
       id,
       content,
       nickname,
+      authorUserId,
       createdAt: nowIso(),
       moderationStatus: 'visible',
       deliveryStatus: 'pending',
@@ -68,6 +69,7 @@ export function useMessages() {
         id: payload.id,
         content: payload.content,
         nickname: payload.nickname,
+        authorUserId: payload.authorUserId,
         createdAt: payload.createdAt,
         moderationStatus: payload.moderationStatus,
         deliveryStatus: 'confirmed',
@@ -91,7 +93,8 @@ export function useMessages() {
         if (
           message.deliveryStatus !== 'pending' ||
           message.content !== payload.content ||
-          message.nickname !== payload.nickname
+          message.nickname !== payload.nickname ||
+          message.authorUserId !== payload.authorUserId
         ) {
           return
         }

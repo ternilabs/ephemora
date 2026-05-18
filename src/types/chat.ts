@@ -6,6 +6,7 @@ export interface MessageRow {
   created_at: string
   moderation_status: ModerationStatus
   nickname: string
+  authorUserId: string
 }
 
 export interface MessagesPage {
@@ -17,6 +18,7 @@ export interface MessageNewPayload {
   id: string
   content: string
   nickname: string
+  authorUserId: string
   createdAt: string
   moderationStatus: ModerationStatus
 }
@@ -37,10 +39,13 @@ export interface MessageReportPayload {
 
 export interface UserIdentityPayload {
   nickname: string
+  authorUserId: string
 }
 
 export interface RoomPresencePayload {
   count: number
+  loggedInCount?: number
+  authenticatedCount?: number
 }
 
 export interface UserCooldownPayload {
@@ -51,19 +56,39 @@ export interface UserMutedPayload {
   muteRemainingMs: number
 }
 
+export type SystemErrorCode =
+  | 'banned'
+  | 'invalid_message_length'
+  | 'auth_required'
+  | 'internal_error'
+  | (string & {})
+
 export interface SystemErrorPayload {
-  code: string
+  code: SystemErrorCode
 }
+
+export type ReportErrorCode =
+  | 'already_reported'
+  | 'auth_required'
+  | 'invalid_payload'
+  | 'internal_error'
+  | 'no_socket'
+  | 'timeout'
+  | 'rate_limited'
+  | 'message_not_found'
+  | 'cannot_report_own_message'
+  | (string & {})
 
 export interface ReportAck {
   ok: boolean
-  error?: string
+  error?: ReportErrorCode
 }
 
 export interface ChatMessage {
   id: string
   content: string
   nickname: string
+  authorUserId: string
   createdAt: string
   moderationStatus: ModerationStatus
   deliveryStatus?: 'pending' | 'confirmed'

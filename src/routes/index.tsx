@@ -1,12 +1,15 @@
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Anchor, Box, Button, Center, Container, Loader, Stack, Text } from '@mantine/core'
+import { Box, Button, Center, Container, Drawer, Loader, Skeleton, Stack, Text, ActionIcon } from '@mantine/core'
+import { useMediaQuery } from '@mantine/hooks'
 import { modals } from '@mantine/modals'
+import { PanelLeftOpen, PanelRightOpen } from 'lucide-react'
 import JoinButton from '../components/auth/JoinButton'
 import MessageInput from '../components/chat/MessageInput'
 import MessageList from '../components/chat/MessageList'
 import LeftSidebar from '../components/layout/LeftSidebar'
+import RightPanelContent from '../components/layout/RightPanelContent'
 import ReportMessageModal from '../components/modals/ReportMessageModal'
 import { useAuth } from '../hooks/useAuth'
 import { useBootstrap } from '../hooks/useBootstrap'
@@ -17,7 +20,6 @@ import { useModeratorAccessCache } from '../hooks/useModerator'
 import { useReportMessage } from '../hooks/useReportMessage'
 import { useSocket, type SocketStatus } from '../hooks/useSocket'
 import type { ChatMessage, MessageRow } from '../types/chat'
-import { formatTime } from '../utils/formatTime'
 
 export const Route = createFileRoute('/')({
   head: () => ({
@@ -31,6 +33,7 @@ function toChatMessage(row: MessageRow): ChatMessage {
     id: row.id,
     content: row.content,
     nickname: row.nickname,
+    authorUserId: row.authorUserId,
     createdAt: row.created_at,
     moderationStatus: row.moderation_status,
     deliveryStatus: 'confirmed',
@@ -43,13 +46,6 @@ function dedupeById(messages: ChatMessage[]): ChatMessage[] {
     byId.set(m.id, m)
   }
   return [...byId.values()]
-}
-
-function formatSeconds(seconds: number): string {
-  const h = Math.floor(seconds / 3600)
-  const m = Math.floor((seconds % 3600) / 60)
-  const s = seconds % 60
-  return [h, m, s].map((n) => String(n).padStart(2, '0')).join(':')
 }
 
 function getConnectionBadgeState(status: SocketStatus): Exclude<SocketStatus, 'disconnected'> | 'offline' {
@@ -68,7 +64,7 @@ function ChatRoute() {
   const navigate = useNavigate({ from: '/' })
   const queryClient = useQueryClient()
   const bootstrap = useBootstrap()
-  const { session, signInWithGoogle, signInWithGitHub, signOut } = useAuth()
+  const { session, isLoading: authLoading, signInWithGoogle, signInWithGitHub, signOut } = useAuth()
   const moderatorAccess = useModeratorAccessCache()
   const token = session?.access_token ?? ''
   const userId = session?.user.id
@@ -106,6 +102,7 @@ function ChatRoute() {
     clearMessages()
     setHideHistoryMessages(true)
     void queryClient.removeQueries({ queryKey: ['messages', 'history', historyLimit], exact: true })
+    void bootstrap.refetch()
 
     const requestId = ++resetRequestRef.current
     void refetchHistory().finally(() => {
@@ -113,7 +110,7 @@ function ChatRoute() {
         setHideHistoryMessages(false)
       }
     })
-  }, [clearMessages, historyLimit, queryClient, refetchHistory])
+  }, [bootstrap, clearMessages, historyLimit, queryClient, refetchHistory])
 
   const socketState = useSocket({
     token,
@@ -132,6 +129,11 @@ function ChatRoute() {
   const maxLen = bootstrap.data?.limits.messageMaxLength ?? 500
   const cooldownWindowMs = (bootstrap.data?.limits.messageCooldownSeconds ?? 5) * 1000
   const { secondsRemaining } = useCountdown({ resetAt, onZero: handleReset })
+  const isIdentityLoading =
+    isAuthed && (socketState.nickname === null || socketState.authorUserId === null)
+  const isMobile = useMediaQuery('(max-width: 768px)')
+  const [leftDrawerOpened, setLeftDrawerOpened] = useState(false)
+  const [rightDrawerOpened, setRightDrawerOpened] = useState(false)
 
   if (bootstrap.isLoading) {
     return (
@@ -174,6 +176,13 @@ function ChatRoute() {
     .reverse()
     .filter((message) => message.moderationStatus === 'under_review')
     .slice(0, 12)
+  const hasAnyLoadedMessages = messages.length > 0
+  const currentAuthorUserId = socketState.authorUserId ?? undefined
+  const shouldShowFeedSkeleton =
+    authLoading ||
+    history.isLoading ||
+    (isAuthed && (isIdentityLoading || (socketState.status === 'connecting' && !hasAnyLoadedMessages)))
+  const pendingOwnAuthorUserId = userId ? `self:${userId}` : undefined
 
   const openReport = (m: ChatMessage) => {
     const id = modals.open({
@@ -201,22 +210,105 @@ function ChatRoute() {
 
   return (
     <Box className="ep3-root">
-      <LeftSidebar presenceCount={socketState.presenceCount} showPresence />
+      {isMobile ? (
+        <>
+          <Drawer
+            id="ep3-topics-drawer"
+            opened={leftDrawerOpened}
+            onClose={() => setLeftDrawerOpened(false)}
+            withCloseButton={false}
+            size="88%"
+            classNames={{
+              inner: 'ep3-mobile-drawer-inner',
+              content: 'ep3-mobile-drawer-content',
+              body: 'ep3-mobile-drawer-body',
+            }}
+          >
+            <Box className="ep3-mobile-panel">
+              <LeftSidebar
+                className="ep3-left-mobile"
+                presenceCount={socketState.presenceCount}
+                showPresence={isAuthed && socketState.status === 'connected'}
+              />
+            </Box>
+          </Drawer>
+          <Drawer
+            id="ep3-details-drawer"
+            opened={rightDrawerOpened}
+            onClose={() => setRightDrawerOpened(false)}
+            withCloseButton={false}
+            position="right"
+            size="88%"
+            classNames={{
+              inner: 'ep3-mobile-drawer-inner',
+              content: 'ep3-mobile-drawer-content',
+              body: 'ep3-mobile-drawer-body',
+            }}
+          >
+            <Box className="ep3-mobile-panel">
+              <Box className="ep3-right ep3-right-mobile">
+                <RightPanelContent secondsRemaining={secondsRemaining} reportedMessages={reportedMessages} />
+              </Box>
+            </Box>
+          </Drawer>
+        </>
+      ) : null}
+
+      {!isMobile ? (
+        <LeftSidebar
+          presenceCount={socketState.presenceCount}
+          showPresence={isAuthed && socketState.status === 'connected'}
+        />
+      ) : null}
 
       <Box className="ep3-middle">
         <Box className="ep3-mid-header">
-          <Text className="ep3-room-title">Global</Text>
-          <Text className={`ep3-connected-badge ep3-connected-${connectionState}`}>
-            {connectionLabel}
-          </Text>
+          <Box className="ep3-header-main">
+            <ActionIcon
+              variant="subtle"
+              className="ep3-mobile-panel-toggle"
+              onClick={() => setLeftDrawerOpened(true)}
+              aria-label="Open topics panel"
+              aria-expanded={leftDrawerOpened}
+              aria-controls="ep3-topics-drawer"
+            >
+              <PanelLeftOpen size={16} />
+            </ActionIcon>
+            <Text className="ep3-room-title">Global</Text>
+          </Box>
+          <Box className="ep3-header-actions">
+            <Text className={`ep3-connected-badge ep3-connected-${connectionState}`}>
+              {connectionLabel}
+            </Text>
+            <ActionIcon
+              variant="subtle"
+              className="ep3-mobile-panel-toggle"
+              onClick={() => setRightDrawerOpened(true)}
+              aria-label="Open details panel"
+              aria-expanded={rightDrawerOpened}
+              aria-controls="ep3-details-drawer"
+            >
+              <PanelRightOpen size={16} />
+            </ActionIcon>
+          </Box>
         </Box>
 
-        {history.isLoading ? (
-          <Container className="ep3-chat-state" size="sm" py="xl">
-            <Stack gap="sm">
-              <Text>Loading messages…</Text>
+        {shouldShowFeedSkeleton ? (
+          <Box className="ep3-feed ep3-feed-skeleton">
+            <Box className="ep3-day-divider">
+              <Box className="ep3-day-divider-line" />
+              <Skeleton height={12} width={88} radius={0} />
+              <Box className="ep3-day-divider-line" />
+            </Box>
+            <Stack className="ep3-chat-skeleton-stack" gap="md">
+              <Skeleton height={16} width={190} radius={0} />
+              <Skeleton height={44} width={130} radius={0} />
+              <Skeleton height={16} width={190} radius={0} mt="xs" />
+              <Skeleton height={210} width="72%" radius={0} />
+              <Skeleton height={16} width={190} radius={0} mt="xs" />
+              <Skeleton height={118} width="66%" radius={0} />
             </Stack>
-          </Container>
+          </Box>
         ) : history.isError ? (
           <Container className="ep3-chat-state" size="sm" py="xl">
             <Stack gap="sm">
@@ -234,8 +326,9 @@ function ChatRoute() {
         ) : (
           <MessageList
             messages={messages}
-            currentNickname={socketState.nickname}
-            canReport={isAuthed && socketState.status === 'connected'}
+            currentAuthorUserId={currentAuthorUserId}
+            currentPendingAuthorUserId={pendingOwnAuthorUserId}
+            canReport={isAuthed && socketState.status === 'connected' && socketState.nickname !== null}
             onReport={openReport}
             onLoadMore={() => history.fetchNextPage()}
             hasMore={!!history.hasNextPage}
@@ -249,14 +342,15 @@ function ChatRoute() {
             cooldownWindowMs={cooldownWindowMs}
             cooldownRemainingMs={socketState.cooldownRemainingMs}
             muteRemainingMs={socketState.muteRemainingMs}
-            nickname={socketState.nickname ?? (isAuthed ? 'Connecting…' : null)}
+            nicknameLoading={isIdentityLoading}
+            nickname={socketState.nickname ?? (isAuthed ? 'Anonymous' : null)}
             sendDisabled={socketState.status !== 'connected'}
             showModeratorAction={moderatorAccess.isModerator && !moderatorAccess.isChecking}
             onModerator={() => navigate({ to: '/moderation' })}
             onSignOut={signOut}
             onSend={(content) => {
-              if (socketState.nickname) {
-                addPendingMessage(content, socketState.nickname)
+              if (socketState.nickname && userId) {
+                addPendingMessage(content, socketState.nickname, currentAuthorUserId ?? `self:${userId}`)
               }
               socketState.sendMessage(content)
             }}
@@ -271,59 +365,10 @@ function ChatRoute() {
           </Box>
         )}
 
-        <Box className="ep3-mobile-legal-links">
-          <Anchor className="ep3-left-footer-link" component={Link} to="/about">
-            About
-          </Anchor>
-          <Anchor className="ep3-left-footer-link" component={Link} to="/privacy">
-            Privacy
-          </Anchor>
-          <Anchor className="ep3-left-footer-link" component={Link} to="/terms">
-            Terms
-          </Anchor>
-        </Box>
       </Box>
 
       <Box className="ep3-right">
-        <Box className="ep3-right-body">
-          <Box className="ep3-info-section ep3-reset-section">
-            <Text className="ep3-info-label">Next Reset</Text>
-            <Box className="ep3-reset-block">
-              <Text className="ep3-reset-time">{formatSeconds(secondsRemaining)}</Text>
-              <Text className="ep3-reset-sub">Next global wipe at 00:00 UTC</Text>
-            </Box>
-          </Box>
-
-          <Box className="ep3-reports-section">
-            <Box className="ep3-info-label-row">
-              <Text className="ep3-info-label">Room Under Review</Text>
-              <Text className="ep3-count-pill">{reportedMessages.length} active</Text>
-            </Box>
-
-            <Box className="ep3-reports-scroll">
-              {reportedMessages.length === 0 ? (
-                <Text className="ep3-reported-empty">No active room-level review signals.</Text>
-              ) : (
-                reportedMessages.map((message) => (
-                  <Box key={message.id} className="ep3-reported-item">
-                    <Box className="ep3-reported-top">
-                      <Text className="ep3-reported-nick">{message.nickname}</Text>
-                      <Text className="ep3-reported-time">{formatTime(message.createdAt)}</Text>
-                    </Box>
-                    <Text className="ep3-reported-preview">
-                      {message.moderationStatus === 'under_review'
-                        ? 'This message has been flagged for review.'
-                        : message.content}
-                    </Text>
-                    <Box className="ep3-reported-meta">
-                      <Text className="ep3-reported-badge">Under review</Text>
-                    </Box>
-                  </Box>
-                ))
-              )}
-            </Box>
-          </Box>
-        </Box>
+        <RightPanelContent secondsRemaining={secondsRemaining} reportedMessages={reportedMessages} />
       </Box>
     </Box>
   )

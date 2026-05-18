@@ -1,4 +1,5 @@
-import { Box, Button, Group, Stack, Text, Textarea } from '@mantine/core'
+import { Box, Button, Group, Skeleton, Stack, Text, Textarea, UnstyledButton } from '@mantine/core'
+import { SendHorizontal } from 'lucide-react'
 import { useMemo, useState } from 'react'
 
 export default function MessageInput(props: {
@@ -7,6 +8,7 @@ export default function MessageInput(props: {
   cooldownRemainingMs: number
   muteRemainingMs: number
   nickname?: string | null
+  nicknameLoading?: boolean
   sendDisabled?: boolean
   showModeratorAction?: boolean
   onModerator?: () => void
@@ -34,9 +36,13 @@ export default function MessageInput(props: {
 
   return (
     <Stack gap={8} className="ep3-compose">
-      <Text className="ep3-compose-label">
-        You are <strong>{props.nickname ?? 'Anonymous'}</strong>
-      </Text>
+      {props.nicknameLoading ? (
+        <Skeleton className="ep3-compose-label-skeleton" height={18} width={220} radius={0} />
+      ) : (
+        <Text className="ep3-compose-label">
+          You are <strong>{props.nickname ?? 'Anonymous'}</strong>
+        </Text>
+      )}
       {muted ? (
         <Text className="ep3-compose-muted">
           Muted ({Math.ceil(props.muteRemainingMs / 1000)}s remaining)
@@ -53,8 +59,8 @@ export default function MessageInput(props: {
           maxRows={4}
           autosize
         />
-        <Button
-          className="ep3-send-btn"
+        <UnstyledButton
+          className="ep3-send-icon"
           aria-label="Send message"
           disabled={disabled}
           onClick={() => {
@@ -63,8 +69,8 @@ export default function MessageInput(props: {
             setValue('')
           }}
         >
-          →
-        </Button>
+          <SendHorizontal size={16} strokeWidth={1.9} />
+        </UnstyledButton>
       </Group>
 
       <Group justify="space-between" align="center">

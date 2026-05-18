@@ -1,13 +1,19 @@
 import { Anchor, Box, Text } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
+import clsx from 'clsx'
 
-export default function LeftSidebar(props: { presenceCount?: number | null; showPresence?: boolean }) {
+export default function LeftSidebar(props: {
+  presenceCount?: number | null
+  showPresence?: boolean
+  className?: string
+}) {
   const hasPresence = typeof props.presenceCount === 'number'
   const shouldShowPresence = props.showPresence ?? false
   const presenceLabel = hasPresence ? `${props.presenceCount} online` : 'online'
+  const className = clsx('ep3-left', props.className)
 
   return (
-    <Box className="ep3-left">
+    <Box className={className}>
       <Text className="ep3-topics-label">Topics</Text>
       <Box className="ep3-topic-row ep3-topic-row-active">
         <Box className="ep3-topic-icon">◎</Box>

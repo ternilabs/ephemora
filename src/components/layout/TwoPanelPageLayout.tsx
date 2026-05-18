@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { ActionIcon, Anchor, Box, Text } from '@mantine/core'
+import { ActionIcon, Box, Text } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
+import { ArrowLeft } from 'lucide-react'
 import LeftSidebar from './LeftSidebar'
 
 export default function TwoPanelPageLayout(props: { title: string; children: ReactNode }) {
@@ -19,25 +20,13 @@ export default function TwoPanelPageLayout(props: { title: string; children: Rea
               to="/"
               aria-label="Back to global chat"
             >
-              ←
+              <ArrowLeft size={16} />
             </ActionIcon>
             <Text className="ep3-room-title">{props.title}</Text>
           </Box>
         </Box>
 
         <Box className="ep3-static-body">{props.children}</Box>
-
-        <Box className="ep3-mobile-legal-links">
-          <Anchor className="ep3-left-footer-link" component={Link} to="/about">
-            About
-          </Anchor>
-          <Anchor className="ep3-left-footer-link" component={Link} to="/privacy">
-            Privacy
-          </Anchor>
-          <Anchor className="ep3-left-footer-link" component={Link} to="/terms">
-            Terms
-          </Anchor>
-        </Box>
       </Box>
     </Box>
   )
