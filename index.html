@@ -3,6 +3,22 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      (function () {
+        try {
+          var key = 'ephemora:color-scheme'
+          var stored = window.localStorage.getItem(key)
+          var scheme = stored === 'light' || stored === 'dark' || stored === 'auto' ? stored : 'auto'
+          var resolved =
+            scheme === 'auto'
+              ? (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+              : scheme
+          document.documentElement.dataset.mantineColorScheme = resolved
+        } catch (e) {
+          // Fail silently and let app defaults apply.
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

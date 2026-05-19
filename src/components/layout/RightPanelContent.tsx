@@ -1,4 +1,4 @@
-import { Box, Text } from '@mantine/core'
+import { Box, SegmentedControl, Text, useMantineColorScheme } from '@mantine/core'
 import type { ChatMessage } from '../../types/chat'
 import { formatTime } from '../../utils/formatTime'
 
@@ -14,9 +14,35 @@ export default function RightPanelContent(props: {
   reportedMessages: ChatMessage[]
 }) {
   const { secondsRemaining, reportedMessages } = props
+  const { colorScheme, setColorScheme } = useMantineColorScheme()
+  const appearanceValue = colorScheme === 'auto' ? 'system' : colorScheme
 
   return (
     <Box className="ep3-right-body">
+      <Box className="ep3-info-section ep3-appearance-section">
+        <Text className="ep3-info-label">Appearance</Text>
+        <SegmentedControl
+          className="ep3-appearance-control"
+          aria-label="Appearance"
+          fullWidth
+          value={appearanceValue}
+          onChange={(value) => {
+            if (value === 'system') {
+              setColorScheme('auto')
+              return
+            }
+            if (value === 'light' || value === 'dark') {
+              setColorScheme(value)
+            }
+          }}
+          data={[
+            { label: 'System', value: 'system' },
+            { label: 'Light', value: 'light' },
+            { label: 'Dark', value: 'dark' },
+          ]}
+        />
+      </Box>
+
       <Box className="ep3-info-section ep3-reset-section">
         <Text className="ep3-info-label">Next Reset</Text>
         <Box className="ep3-reset-block">

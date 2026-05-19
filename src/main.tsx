@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { MantineProvider } from '@mantine/core'
+import { MantineProvider, localStorageColorSchemeManager } from '@mantine/core'
 import { Notifications } from '@mantine/notifications'
 import { ModalsProvider } from '@mantine/modals'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -19,7 +19,11 @@ import './index.css'
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <MantineProvider theme={mantineTheme} defaultColorScheme="light">
+      <MantineProvider
+        theme={mantineTheme}
+        defaultColorScheme="auto"
+        colorSchemeManager={localStorageColorSchemeManager({ key: 'ephemora:color-scheme' })}
+      >
         <Notifications />
         <ModalsProvider>
           <RouterProvider router={router} />

@@ -1,5 +1,6 @@
 import { Anchor, Box, Text } from '@mantine/core'
 import { Link } from '@tanstack/react-router'
+import { Globe } from 'lucide-react'
 import clsx from 'clsx'
 
 export default function LeftSidebar(props: {
@@ -16,7 +17,9 @@ export default function LeftSidebar(props: {
     <Box className={className}>
       <Text className="ep3-topics-label">Topics</Text>
       <Box className="ep3-topic-row ep3-topic-row-active">
-        <Box className="ep3-topic-icon">◎</Box>
+        <Box className="ep3-topic-icon" aria-hidden>
+          <Globe size={15} strokeWidth={1.7} />
+        </Box>
         <Box className="ep3-topic-meta">
           <Text className="ep3-topic-name">Global</Text>
           <Text className="ep3-topic-desc">Official global server</Text>
