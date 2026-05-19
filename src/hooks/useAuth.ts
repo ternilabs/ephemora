@@ -2,7 +2,7 @@ import { useCallback } from 'react'
 import { supabase } from '../lib/supabase'
 import { useSession } from './useSession'
 
-type OAuthProvider = 'google' | 'github'
+type OAuthProvider = 'discord' | 'github'
 
 function getRedirectTo() {
   if (typeof window === 'undefined') return undefined
@@ -21,8 +21,8 @@ export function useAuth() {
     })
   }, [])
 
-  const signInWithGoogle = useCallback(() => {
-    return signInWithOAuth('google')
+  const signInWithDiscord = useCallback(() => {
+    return signInWithOAuth('discord')
   }, [signInWithOAuth])
 
   const signInWithGitHub = useCallback(() => {
@@ -34,7 +34,7 @@ export function useAuth() {
   return {
     session,
     isLoading,
-    signInWithGoogle,
+    signInWithDiscord,
     signInWithGitHub,
     signOut,
   }

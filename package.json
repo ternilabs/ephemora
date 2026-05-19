@@ -1,8 +1,11 @@
 {
   "name": "ephemora",
   "private": true,
-  "version": "1.0.6",
+  "version": "1.0.8",
   "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
   "scripts": {
     "dev": "vite",
     "dev:host": "vite --host",
@@ -13,6 +16,7 @@
   "dependencies": {
     "@fontsource-variable/geist": "^5.2.8",
     "@fontsource-variable/geist-mono": "^5.2.7",
+    "@icons-pack/react-simple-icons": "^13.13.0",
     "@mantine/core": "^9.2.0",
     "@mantine/hooks": "^9.2.0",
     "@mantine/modals": "^9.2.0",
