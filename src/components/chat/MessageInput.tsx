@@ -34,6 +34,12 @@ export default function MessageInput(props: {
 
   const disabled = !!props.sendDisabled || muted || coolingDown || empty || overLimit
 
+  const submitMessage = () => {
+    if (disabled || !trimmedValue) return
+    props.onSend(trimmedValue)
+    setValue('')
+  }
+
   return (
     <Stack gap={8} className="ep3-compose">
       {props.nicknameLoading ? (
@@ -55,19 +61,21 @@ export default function MessageInput(props: {
           placeholder="Write something ephemeral..."
           value={value}
           onChange={(event) => setValue(event.currentTarget.value)}
-          minRows={1}
-          maxRows={4}
           autosize
+          minRows={1}
+          maxRows={3}
+          onKeyDown={(event) => {
+            if (event.nativeEvent.isComposing) return
+            if (event.key !== 'Enter' || event.shiftKey) return
+            event.preventDefault()
+            submitMessage()
+          }}
         />
         <UnstyledButton
           className="ep3-send-icon"
           aria-label="Send message"
           disabled={disabled}
-          onClick={() => {
-            if (!trimmedValue) return
-            props.onSend(trimmedValue)
-            setValue('')
-          }}
+          onClick={submitMessage}
         >
           <SendHorizontal size={16} strokeWidth={1.9} />
         </UnstyledButton>

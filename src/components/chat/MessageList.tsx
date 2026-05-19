@@ -1,5 +1,5 @@
 import { Box, Stack, Text } from '@mantine/core'
-import { useCallback, useEffect, useRef } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
 import type { ChatMessage } from '../../types/chat'
 import MessageBubble from './MessageBubble'
 
@@ -59,6 +59,7 @@ export default function MessageList(props: {
   const noOverflowLoadForCountRef = useRef<number | null>(null)
   const shouldAutoFollowRef = useRef(true)
   const lastMessageIdRef = useRef<string | null>(null)
+  const previousScrollHeightRef = useRef(0)
 
   const isPendingOwnMessage = useCallback(
     (authorId: string) => {
@@ -161,7 +162,7 @@ export default function MessageList(props: {
     }, 300)
   }, [messages.length, hasMore, loadingMore, onLoadMore])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = ref.current
     if (!el || messages.length === 0) return
 
@@ -174,16 +175,30 @@ export default function MessageList(props: {
 
     if (!lastMessageChanged) return
 
+    const previousScrollHeight = previousScrollHeightRef.current || el.scrollHeight
+    const previousDistanceFromBottom = previousScrollHeight - (el.scrollTop + el.clientHeight)
+    const wasNearBottom = previousDistanceFromBottom <= 80
+
     const isPendingLastMessage = lastMessage.deliveryStatus === 'pending'
     const isOwnLastMessage = isPendingLastMessage
       ? isPendingOwnMessage(lastMessage.authorUserId)
       : !!currentAuthorUserId && lastMessage.authorUserId === currentAuthorUserId
 
-    if (isOwnLastMessage || shouldAutoFollowRef.current) {
+    if (isOwnLastMessage || shouldAutoFollowRef.current || wasNearBottom) {
       el.scrollTop = el.scrollHeight
       shouldAutoFollowRef.current = true
     }
+
+    previousScrollHeightRef.current = el.scrollHeight
   }, [messages, currentAuthorUserId, isPendingOwnMessage])
+
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el || messages.length === 0) return
+    if (!shouldAutoFollowRef.current) return
+    el.scrollTop = el.scrollHeight
+    previousScrollHeightRef.current = el.scrollHeight
+  }, [messages.length])
 
   useEffect(() => {
     return () => {

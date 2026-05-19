@@ -1,10 +1,10 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Box, Button, Center, Container, Drawer, Loader, Skeleton, Stack, Text, ActionIcon } from '@mantine/core'
+import { ActionIcon, Box, Button, Center, Container, Drawer, Loader, Skeleton, Stack, Text, UnstyledButton } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { modals } from '@mantine/modals'
-import { PanelLeftOpen, PanelRightOpen } from 'lucide-react'
+import { PanelLeftOpen, PanelRightOpen, ServerOff } from 'lucide-react'
 import JoinButton from '../components/auth/JoinButton'
 import MessageInput from '../components/chat/MessageInput'
 import MessageList from '../components/chat/MessageList'
@@ -64,7 +64,7 @@ function ChatRoute() {
   const navigate = useNavigate({ from: '/' })
   const queryClient = useQueryClient()
   const bootstrap = useBootstrap()
-  const { session, isLoading: authLoading, signInWithGoogle, signInWithGitHub, signOut } = useAuth()
+  const { session, isLoading: authLoading, signInWithDiscord, signInWithGitHub, signOut } = useAuth()
   const moderatorAccess = useModeratorAccessCache()
   const token = session?.access_token ?? ''
   const userId = session?.user.id
@@ -146,17 +146,30 @@ function ChatRoute() {
   if (bootstrap.isError) {
     return (
       <Center h="100dvh">
-        <Container size="sm">
-          <Stack gap="sm">
-            <Text>Failed to load chat settings.</Text>
-            <Button
-              onClick={() => bootstrap.refetch()}
-              variant="light"
-              loading={bootstrap.isRefetching}
+        <Container size="sm" className="ep3-outage-state">
+          <Stack gap="xs" align="center">
+            <ServerOff size={30} className="ep3-outage-icon" aria-hidden="true" />
+            <Text className="ep3-outage-title">Server unavailable</Text>
+            <Text className="ep3-outage-description">Server is temporarily unavailable. Check your connection or retry in a moment.</Text>
+            <UnstyledButton
+              type="button"
+              className="ep3-outage-retry"
+              onClick={() => void bootstrap.refetch()}
               disabled={bootstrap.isRefetching}
+              aria-busy={bootstrap.isRefetching}
             >
-              Retry
-            </Button>
+              {bootstrap.isRefetching ? (
+                <>
+                  <Loader size={12} type="dots" />
+                  Retrying…
+                </>
+              ) : (
+                'Retry'
+              )}
+            </UnstyledButton>
+            <Text className="ep3-outage-live" aria-live="polite">
+              {bootstrap.isRefetching ? 'Retry in progress.' : ''}
+            </Text>
           </Stack>
         </Container>
       </Center>
@@ -357,11 +370,8 @@ function ChatRoute() {
           />
         ) : (
           <Box className="ep3-login-area">
-            <Text className="ep3-login-title">Join the room to post</Text>
-            <Text className="ep3-login-subtitle">
-              You can read publicly, but posting requires a quick OAuth sign-in.
-            </Text>
-            <JoinButton onGoogle={signInWithGoogle} onGitHub={signInWithGitHub} />
+            <Text className="ep3-login-title">Join and chat with strangers</Text>
+            <JoinButton onDiscord={signInWithDiscord} onGitHub={signInWithGitHub} />
           </Box>
         )}
 
