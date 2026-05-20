@@ -34,7 +34,13 @@ export function useMessages() {
     setModerationOverrides({})
   }, [])
 
-  const addPendingMessage = useCallback((content: string, nickname: string, authorUserId: string) => {
+  const addPendingMessage = useCallback(
+    (
+      content: string,
+      nickname: string,
+      authorUserId: string,
+      reply?: Pick<ChatMessage, 'replyToMessageId' | 'replyPreview'>,
+    ) => {
     const id = pendingId()
     const message: ChatMessage = {
       id,
@@ -44,11 +50,15 @@ export function useMessages() {
       createdAt: nowIso(),
       moderationStatus: 'visible',
       deliveryStatus: 'pending',
+      ...(reply?.replyToMessageId ? { replyToMessageId: reply.replyToMessageId } : {}),
+      ...(reply?.replyPreview ? { replyPreview: reply.replyPreview } : {}),
     }
 
     setLiveMessages((previous) => [...previous, message])
     return id
-  }, [])
+    },
+    [],
+  )
 
   const removeMessageById = useCallback((id: string) => {
     setLiveMessages((previous) => previous.filter((message) => message.id !== id))
@@ -73,6 +83,8 @@ export function useMessages() {
         createdAt: payload.createdAt,
         moderationStatus: payload.moderationStatus,
         deliveryStatus: 'confirmed',
+        ...(payload.replyToMessageId ? { replyToMessageId: payload.replyToMessageId } : {}),
+        ...(payload.replyPreview ? { replyPreview: payload.replyPreview } : {}),
       }
 
       const existingConfirmedIndex = previous.findIndex(
@@ -94,7 +106,8 @@ export function useMessages() {
           message.deliveryStatus !== 'pending' ||
           message.content !== payload.content ||
           message.nickname !== payload.nickname ||
-          message.authorUserId !== payload.authorUserId
+          message.authorUserId !== payload.authorUserId ||
+          message.replyToMessageId !== payload.replyToMessageId
         ) {
           return
         }

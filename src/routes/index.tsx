@@ -17,9 +17,11 @@ import { useCountdown } from '../hooks/useCountdown'
 import { useMessageHistory } from '../hooks/useMessageHistory'
 import { useMessages } from '../hooks/useMessages'
 import { useModeratorAccessCache } from '../hooks/useModerator'
+import { usePresenceRoster } from '../hooks/usePresenceRoster'
 import { useReportMessage } from '../hooks/useReportMessage'
 import { useSocket, type SocketStatus } from '../hooks/useSocket'
-import type { ChatMessage, MessageRow } from '../types/chat'
+import type { ChatMessage, MessageRow, PresenceRosterUser, ReplyPreview } from '../types/chat'
+import { isSameUtcDay } from '../utils/getTodayUTC'
 
 export const Route = createFileRoute('/')({
   head: () => ({
@@ -37,6 +39,8 @@ function toChatMessage(row: MessageRow): ChatMessage {
     createdAt: row.created_at,
     moderationStatus: row.moderation_status,
     deliveryStatus: 'confirmed',
+    ...(row.replyToMessageId ? { replyToMessageId: row.replyToMessageId } : {}),
+    ...(row.replyPreview ? { replyPreview: row.replyPreview } : {}),
   }
 }
 
@@ -85,6 +89,7 @@ function ChatRoute() {
   } = useMessages()
   const [hideHistoryMessages, setHideHistoryMessages] = useState(false)
   const resetRequestRef = useRef(0)
+  const [replyTarget, setReplyTarget] = useState<{ id: string; preview: ReplyPreview } | null>(null)
 
   const liveMessagesRef = useRef<ChatMessage[]>(liveMessages)
   useEffect(() => {
@@ -100,6 +105,7 @@ function ChatRoute() {
 
   const handleReset = useCallback(() => {
     clearMessages()
+    setReplyTarget(null)
     setHideHistoryMessages(true)
     void queryClient.removeQueries({ queryKey: ['messages', 'history', historyLimit], exact: true })
     void bootstrap.refetch()
@@ -122,6 +128,7 @@ function ChatRoute() {
     onReset: handleReset,
     onRemovePending: removeMostRecentPending,
   })
+  const presenceRoster = usePresenceRoster(socketState.socket)
   const report = useReportMessage(socketState.socket)
   const connectionState = getConnectionBadgeState(socketState.status)
   const connectionLabel = getConnectionLabel(socketState.status)
@@ -138,7 +145,7 @@ function ChatRoute() {
   if (bootstrap.isLoading) {
     return (
       <Center h="100dvh">
-        <Loader />
+        <Loader type="dots" />
       </Center>
     )
   }
@@ -149,8 +156,12 @@ function ChatRoute() {
         <Container size="sm" className="ep3-outage-state">
           <Stack gap="xs" align="center">
             <ServerOff size={30} className="ep3-outage-icon" aria-hidden="true" />
-            <Text className="ep3-outage-title">Server unavailable</Text>
-            <Text className="ep3-outage-description">Server is temporarily unavailable. Check your connection or retry in a moment.</Text>
+            <Text className="ep3-outage-title">Connection lost</Text>
+            <Text className="ep3-outage-description">
+              We can't reach our network right now.
+              <br />
+              Check your internet or try again in a few minutes.
+            </Text>
             <UnstyledButton
               type="button"
               className="ep3-outage-retry"
@@ -164,7 +175,7 @@ function ChatRoute() {
                   Retrying…
                 </>
               ) : (
-                'Retry'
+                'Try again'
               )}
             </UnstyledButton>
             <Text className="ep3-outage-live" aria-live="polite">
@@ -185,6 +196,20 @@ function ChatRoute() {
     }))
     .filter((message) => message.moderationStatus !== 'hidden')
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+  const mentionUsersById = new Map<string, PresenceRosterUser>()
+  presenceRoster.forEach((user) => {
+    mentionUsersById.set(user.authorUserId, user)
+  })
+  messages.forEach((message) => {
+    if (!mentionUsersById.has(message.authorUserId)) {
+      mentionUsersById.set(message.authorUserId, {
+        authorUserId: message.authorUserId,
+        nickname: message.nickname,
+      })
+    }
+  })
+  const mentionUsers = [...mentionUsersById.values()]
+  const mentionNicknames = [...new Set(mentionUsers.map((user) => user.nickname))]
   const reportedMessages = [...messages]
     .reverse()
     .filter((message) => message.moderationStatus === 'under_review')
@@ -342,7 +367,16 @@ function ChatRoute() {
             currentAuthorUserId={currentAuthorUserId}
             currentPendingAuthorUserId={pendingOwnAuthorUserId}
             canReport={isAuthed && socketState.status === 'connected' && socketState.nickname !== null}
+            canReply={isAuthed && socketState.status === 'connected'}
+            mentionNicknames={mentionNicknames}
             onReport={openReport}
+            onReply={(message) => {
+              if (!isSameUtcDay(message.createdAt)) {
+                return
+              }
+              const preview = { nickname: message.nickname, content: message.content }
+              setReplyTarget({ id: message.id, preview })
+            }}
             onLoadMore={() => history.fetchNextPage()}
             hasMore={!!history.hasNextPage}
             loadingMore={history.isFetchingNextPage}
@@ -360,12 +394,22 @@ function ChatRoute() {
             sendDisabled={socketState.status !== 'connected'}
             showModeratorAction={moderatorAccess.isModerator && !moderatorAccess.isChecking}
             onModerator={() => navigate({ to: '/moderation' })}
-            onSignOut={signOut}
-            onSend={(content) => {
+            onSignOut={() => {
+              setReplyTarget(null)
+              void signOut()
+            }}
+            replyTarget={replyTarget}
+            mentionUsers={mentionUsers}
+            onClearReply={() => setReplyTarget(null)}
+            onSend={(content, replyToMessageId) => {
+              const preview = replyTarget?.preview
               if (socketState.nickname && userId) {
-                addPendingMessage(content, socketState.nickname, currentAuthorUserId ?? `self:${userId}`)
+                addPendingMessage(content, socketState.nickname, currentAuthorUserId ?? `self:${userId}`, {
+                  ...(replyToMessageId ? { replyToMessageId } : {}),
+                  ...(preview ? { replyPreview: preview } : {}),
+                })
               }
-              socketState.sendMessage(content)
+              socketState.sendMessage(content, replyToMessageId)
             }}
           />
         ) : (

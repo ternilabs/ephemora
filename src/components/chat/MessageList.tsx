@@ -1,6 +1,8 @@
 import { Box, Stack, Text } from '@mantine/core'
-import { useCallback, useEffect, useLayoutEffect, useRef } from 'react'
+import { notifications } from '@mantine/notifications'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { ChatMessage } from '../../types/chat'
+import { isSameUtcDay } from '../../utils/getTodayUTC'
 import MessageBubble from './MessageBubble'
 
 function getDayDividerLabel(messages: ChatMessage[]): string {
@@ -31,12 +33,29 @@ function getDayDividerLabel(messages: ChatMessage[]): string {
   }).format(createdAt)} · UTC`
 }
 
+function findMessageElement(container: HTMLElement, messageId: string): HTMLElement | null {
+  if (typeof CSS !== 'undefined' && typeof CSS.escape === 'function') {
+    return container.querySelector<HTMLElement>(`[data-message-id="${CSS.escape(messageId)}"]`)
+  }
+
+  const nodes = container.querySelectorAll<HTMLElement>('[data-message-id]')
+  for (const node of nodes) {
+    if (node.dataset.messageId === messageId) {
+      return node
+    }
+  }
+  return null
+}
+
 export default function MessageList(props: {
   messages: ChatMessage[]
   currentAuthorUserId: string | undefined
   currentPendingAuthorUserId: string | undefined
   canReport: boolean
+  canReply: boolean
+  mentionNicknames: string[]
   onReport: (message: ChatMessage) => void
+  onReply: (message: ChatMessage) => void
   onLoadMore: () => void | Promise<unknown>
   hasMore: boolean
   loadingMore: boolean
@@ -46,7 +65,10 @@ export default function MessageList(props: {
     currentAuthorUserId,
     currentPendingAuthorUserId,
     canReport,
+    canReply,
+    mentionNicknames,
     onReport,
+    onReply,
     onLoadMore,
     hasMore,
     loadingMore,
@@ -60,6 +82,12 @@ export default function MessageList(props: {
   const shouldAutoFollowRef = useRef(true)
   const lastMessageIdRef = useRef<string | null>(null)
   const previousScrollHeightRef = useRef(0)
+  const [highlightedMessageId, setHighlightedMessageId] = useState<string | null>(null)
+  const clearHighlightTimerRef = useRef<number | null>(null)
+
+  const messageById = useMemo(() => {
+    return new Map(messages.map((message) => [message.id, message]))
+  }, [messages])
 
   const isPendingOwnMessage = useCallback(
     (authorId: string) => {
@@ -205,8 +233,39 @@ export default function MessageList(props: {
       if (unlockTimerRef.current) {
         window.clearTimeout(unlockTimerRef.current)
       }
+      if (clearHighlightTimerRef.current) {
+        window.clearTimeout(clearHighlightTimerRef.current)
+      }
     }
   }, [])
+
+  const jumpToMessage = useCallback(
+    (targetId: string | undefined) => {
+      if (!targetId) return
+      const container = ref.current
+      if (!container) return
+
+      const target = findMessageElement(container, targetId)
+      if (!target) {
+        notifications.show({
+          color: 'gray',
+          title: 'Reply target',
+          message: 'Original message not loaded.',
+        })
+        return
+      }
+
+      target.scrollIntoView({ block: 'center', behavior: 'smooth' })
+      setHighlightedMessageId(targetId)
+      if (clearHighlightTimerRef.current) {
+        window.clearTimeout(clearHighlightTimerRef.current)
+      }
+      clearHighlightTimerRef.current = window.setTimeout(() => {
+        setHighlightedMessageId((current) => (current === targetId ? null : current))
+      }, 1200)
+    },
+    [],
+  )
 
   return (
     <Box ref={ref} className="ep3-feed">
@@ -223,14 +282,31 @@ export default function MessageList(props: {
             ? isPendingOwnMessage(m.authorUserId)
             : !!currentAuthorUserId && m.authorUserId === currentAuthorUserId
 
+          const replyTargetMessage = m.replyToMessageId ? messageById.get(m.replyToMessageId) : undefined
+          const replyPreview = m.replyPreview ?? (replyTargetMessage
+            ? { nickname: replyTargetMessage.nickname, content: replyTargetMessage.content }
+            : undefined)
+
           return (
-          <MessageBubble
-            key={m.id}
-            message={m}
-            isOwn={isOwn}
-            canReport={canReport}
-            onReport={() => onReport(m)}
-          />
+            <Box
+              key={m.id}
+              data-message-id={m.id}
+              {...(m.id === highlightedMessageId ? { className: 'ep3-msg-anchor-highlight' } : {})}
+            >
+              <MessageBubble
+                message={{
+                  ...m,
+                  ...(replyPreview ? { replyPreview } : {}),
+                }}
+                isOwn={isOwn}
+                canReport={canReport}
+                canReply={canReply && isSameUtcDay(m.createdAt)}
+                mentionNicknames={mentionNicknames}
+                onReport={() => onReport(m)}
+                onReply={() => onReply(m)}
+                onJumpToReplyTarget={() => jumpToMessage(m.replyToMessageId)}
+              />
+            </Box>
           )
         })}
       </Stack>

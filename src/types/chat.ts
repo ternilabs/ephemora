@@ -7,6 +7,8 @@ export interface MessageRow {
   moderation_status: ModerationStatus
   nickname: string
   authorUserId: string
+  replyToMessageId?: string
+  replyPreview?: ReplyPreview
 }
 
 export interface MessagesPage {
@@ -21,6 +23,8 @@ export interface MessageNewPayload {
   authorUserId: string
   createdAt: string
   moderationStatus: ModerationStatus
+  replyToMessageId?: string
+  replyPreview?: ReplyPreview
 }
 
 export interface MessageModeratedPayload {
@@ -29,6 +33,12 @@ export interface MessageModeratedPayload {
 }
 
 export interface MessageSendPayload {
+  content: string
+  replyToMessageId?: string
+}
+
+export interface ReplyPreview {
+  nickname: string
   content: string
 }
 
@@ -91,5 +101,17 @@ export interface ChatMessage {
   authorUserId: string
   createdAt: string
   moderationStatus: ModerationStatus
+  replyToMessageId?: string
+  replyPreview?: ReplyPreview
   deliveryStatus?: 'pending' | 'confirmed'
+}
+
+export interface PresenceRosterUser {
+  authorUserId: string
+  nickname: string
+}
+
+export interface PresenceRosterPayload {
+  roomId: string
+  users: PresenceRosterUser[]
 }

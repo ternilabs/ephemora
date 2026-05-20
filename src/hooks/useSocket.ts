@@ -5,6 +5,7 @@ import { disconnectSocket, getSocket } from '../lib/socket'
 import type {
   MessageModeratedPayload,
   MessageNewPayload,
+  MessageSendPayload,
   RoomPresencePayload,
   SystemErrorPayload,
   UserCooldownPayload,
@@ -293,7 +294,7 @@ export function useSocket(options: UseSocketOptions) {
   }, [socket, userId])
 
   const sendMessage = useCallback(
-    (content: string) => {
+    (content: string, replyToMessageId?: string) => {
       if (!socket) return
 
       if (!isAuthed) {
@@ -315,7 +316,10 @@ export function useSocket(options: UseSocketOptions) {
       }
 
       setCooldownUntilMs(Date.now() + cooldownSeconds * 1000)
-      socket.emit('message:send', { content })
+      const payload: MessageSendPayload = replyToMessageId
+        ? { content, replyToMessageId }
+        : { content }
+      socket.emit('message:send', payload)
     },
     [socket, isAuthed, status, cooldownSeconds],
   )
