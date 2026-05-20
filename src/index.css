@@ -89,6 +89,10 @@ body {
   text-transform: uppercase;
 }
 
+.ep3-topics-label-secondary {
+  padding-top: 14px;
+}
+
 .ep3-topic-row {
   display: flex;
   align-items: center;

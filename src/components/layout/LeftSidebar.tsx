@@ -15,7 +15,7 @@ export default function LeftSidebar(props: {
 
   return (
     <Box className={className}>
-      <Text className="ep3-topics-label">Topics</Text>
+      <Text className="ep3-topics-label">Servers</Text>
       <Box className="ep3-topic-row ep3-topic-row-active">
         <Box className="ep3-topic-icon" aria-hidden>
           <Globe size={15} strokeWidth={1.7} />
@@ -27,6 +27,7 @@ export default function LeftSidebar(props: {
         {shouldShowPresence ? <Text className="ep3-topic-online">{presenceLabel}</Text> : null}
       </Box>
 
+      <Text className="ep3-topics-label ep3-topics-label-secondary">Topics</Text>
       <Box className="ep3-topic-skel-row" aria-hidden>
         <Box className="ep3-topic-skel-icon" />
         <Box className="ep3-topic-skel-lines">
