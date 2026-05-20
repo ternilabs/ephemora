@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { ActionIcon, Box, Button, Center, Container, Drawer, Loader, Skeleton, Stack, Text, UnstyledButton } from '@mantine/core'
+import { ActionIcon, Box, Center, Container, Drawer, Loader, Skeleton, Stack, Text, UnstyledButton } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { modals } from '@mantine/modals'
 import { PanelLeftOpen, PanelRightOpen, ServerOff } from 'lucide-react'
@@ -154,7 +154,7 @@ function ChatRoute() {
     return (
       <Center h="100dvh">
         <Container size="sm" className="ep3-outage-state">
-          <Stack gap="xs" align="center">
+          <Stack gap="xs" align="center" role="status" aria-live="polite" aria-atomic="true">
             <ServerOff size={30} className="ep3-outage-icon" aria-hidden="true" />
             <Text className="ep3-outage-title">Connection lost</Text>
             <Text className="ep3-outage-description">
@@ -178,9 +178,7 @@ function ChatRoute() {
                 'Try again'
               )}
             </UnstyledButton>
-            <Text className="ep3-outage-live" aria-live="polite">
-              {bootstrap.isRefetching ? 'Retry in progress.' : ''}
-            </Text>
+            <Text className="ep3-outage-live">{bootstrap.isRefetching ? 'Retry in progress.' : ''}</Text>
           </Stack>
         </Container>
       </Center>
@@ -348,19 +346,28 @@ function ChatRoute() {
             </Stack>
           </Box>
         ) : history.isError ? (
-          <Container className="ep3-chat-state" size="sm" py="xl">
-            <Stack gap="sm">
-              <Text>Failed to load messages.</Text>
-              <Button
-                onClick={() => history.refetch()}
-                variant="light"
-                loading={history.isRefetching}
-                disabled={history.isRefetching}
-              >
-                Retry
-              </Button>
-            </Stack>
-          </Container>
+          <Box className="ep3-feed ep3-chat-state-feed">
+            <Container className="ep3-chat-state" size="sm" py="xl">
+              <Stack gap="xs" align="center" role="status" aria-live="polite" aria-atomic="true">
+                {history.isRefetching ? (
+                  <>
+                    <Loader size={28} type="dots" />
+                    <Text className="ep3-chat-state-title">Reconnecting…</Text>
+                    <Text className="ep3-chat-state-description">Reconnecting to the server…</Text>
+                  </>
+                ) : (
+                  <>
+                    <ServerOff size={28} className="ep3-chat-state-icon" aria-hidden="true" />
+                    <Text className="ep3-chat-state-title">Failed to load messages.</Text>
+                    <Text className="ep3-chat-state-description">Please try again in a moment.</Text>
+                    <UnstyledButton className="ep3-chat-state-retry" type="button" onClick={() => history.refetch()}>
+                      Try again
+                    </UnstyledButton>
+                  </>
+                )}
+              </Stack>
+            </Container>
+          </Box>
         ) : (
           <MessageList
             messages={messages}

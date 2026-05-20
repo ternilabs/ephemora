@@ -353,8 +353,62 @@ html[data-mantine-color-scheme='dark'] .ep3-connected-waking {
   color: #a5a5a5;
 }
 
+.ep3-chat-state-feed {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .ep3-chat-state {
-  flex: 1;
+  text-align: center;
+}
+
+.ep3-chat-state-icon {
+  color: var(--ep-text-muted);
+}
+
+.ep3-chat-state-title {
+  margin: 0;
+  color: var(--ep-text);
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.ep3-chat-state-description {
+  margin: 0;
+  color: var(--ep-text-subtle);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.ep3-chat-state-retry {
+  height: 22px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: transparent;
+  color: var(--ep-text-subtle);
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.ep3-chat-state-retry:hover {
+  color: var(--ep-text);
+}
+
+.ep3-chat-state-retry:active {
+  color: var(--ep-success);
+}
+
+.ep3-chat-state-retry:focus-visible {
+  outline: 2px solid var(--ep-success);
+  outline-offset: 2px;
 }
 
 .ep3-outage-state {
