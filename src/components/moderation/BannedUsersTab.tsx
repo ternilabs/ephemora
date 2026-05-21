@@ -8,12 +8,15 @@ export default function BannedUsersTab(props: { enabled: boolean }) {
   const actions = useModerationActions()
   const unbanPending = actions.unbanUser.isPending
 
-  if (banned.isLoading) return <Text>Loading…</Text>
-  if (banned.isError) return <Text>Failed to load.</Text>
+  if (banned.isLoading) return <Text className="ep3-mod-state">Loading banned users…</Text>
+  if (banned.isError) return <Text className="ep3-mod-state">Failed to load banned users.</Text>
+  if (!banned.data || banned.data.length === 0) {
+    return <Text className="ep3-mod-state" py="md">No banned users.</Text>
+  }
 
   return (
-    <Stack gap="sm" py="md">
-      {(banned.data ?? []).map((user) => (
+    <Stack gap="sm" py="md" className="ep3-mod-list">
+      {banned.data.map((user) => (
         <ModerationUserRow
           key={user.id}
           user={user}

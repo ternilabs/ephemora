@@ -1,5 +1,6 @@
 import { Button, Group, Paper, Stack, Text } from '@mantine/core'
 import type { BannedUser } from '../../types/moderation'
+import { formatTime } from '../../utils/formatTime'
 
 export default function ModerationUserRow(props: {
   user: BannedUser
@@ -7,17 +8,20 @@ export default function ModerationUserRow(props: {
   unbanLoading: boolean
   unbanDisabled: boolean
 }) {
+  const bannedUntil = props.user.banned_until ? formatTime(props.user.banned_until) : '—'
   return (
-    <Paper withBorder p="sm" radius={0}>
-      <Group justify="space-between">
+    <Paper withBorder p="md" radius={0} className="ep3-mod-card">
+      <Group justify="space-between" align="flex-start" wrap="nowrap">
         <Stack gap={2}>
-          <Text fw={600}>{props.user.supabase_user_id}</Text>
-          <Text size="xs" c="dimmed">
-            until: {props.user.banned_until ?? '—'} • reason: {props.user.ban_reason ?? '—'}
+          <Text className="ep3-mod-card-name ep3-mod-user-id">{props.user.supabase_user_id}</Text>
+          <Text className="ep3-mod-state-subtle">
+            until: {bannedUntil} • reason: {props.user.ban_reason ?? '—'}
           </Text>
         </Stack>
         <Button
-          variant="default"
+          variant="subtle"
+          size="xs"
+          className="ep3-mod-action ep3-mod-action-neutral"
           onClick={props.onUnban}
           loading={props.unbanLoading}
           disabled={props.unbanDisabled}
