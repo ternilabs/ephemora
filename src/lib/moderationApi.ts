@@ -58,6 +58,18 @@ async function moderationFetch<T>(path: string, options?: RequestInit): Promise<
 }
 
 export const moderationApi = {
+  checkAccess: async (signal?: AbortSignal) => {
+    const access = await moderationFetch<{ ok: boolean; isModerator: boolean }>(
+      '/moderation/access',
+      signal ? { signal } : undefined,
+    )
+
+    if (!access.isModerator) {
+      throw new ModerationApiError(403, '/moderation/access')
+    }
+
+    return true
+  },
   getReports: async (signal?: AbortSignal) => {
     const reports = await moderationFetch<ModerationReport[]>(
       '/moderation/reports',

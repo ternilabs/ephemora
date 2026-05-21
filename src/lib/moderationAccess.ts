@@ -18,5 +18,5 @@ function resolveSignal(
 }
 
 export function fetchModeratorAccess(context?: AbortSignal | { signal?: AbortSignal }) {
-  return moderationApi.getReports(resolveSignal(context))
+  return moderationApi.checkAccess(resolveSignal(context))
 }

@@ -11,12 +11,18 @@ function reportErrorMessage(error?: string): string {
       return 'Server did not confirm in time. Please try again.'
     case 'no_socket':
       return 'Not connected. Check your connection and try again.'
+    case 'auth_required':
+      return 'Sign in again, then retry your report.'
     case 'rate_limited':
       return 'Too many reports. Please wait and try again.'
     case 'invalid_payload':
       return 'Invalid report details. Please retry.'
     case 'message_not_found':
       return 'Message no longer exists.'
+    case 'cannot_report_own_message':
+      return "You can't report your own message."
+    case 'internal_error':
+      return 'Server error while submitting report. Please try again.'
     default:
       return 'Something went wrong. Please try again.'
   }
