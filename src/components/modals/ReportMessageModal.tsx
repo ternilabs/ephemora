@@ -5,6 +5,7 @@ export default function ReportMessageModal(props: {
   contentPreview: string
   onCancel: () => void
   onSubmit: (reason?: string) => void | Promise<void>
+  onSubmittingChange?: (isSubmitting: boolean) => void
 }) {
   const [reason, setReason] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -15,10 +16,12 @@ export default function ReportMessageModal(props: {
     }
 
     setSubmitting(true)
+    props.onSubmittingChange?.(true)
     try {
       await props.onSubmit(reason.trim() || undefined)
     } finally {
       setSubmitting(false)
+      props.onSubmittingChange?.(false)
     }
   }
 

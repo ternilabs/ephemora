@@ -63,7 +63,14 @@ export interface UserCooldownPayload {
 }
 
 export interface UserMutedPayload {
-  muteRemainingMs: number
+  muteRemainingMs?: number
+  remainingMs?: number
+}
+
+export interface UserModeratedPayload {
+  userId: string
+  action: 'muted' | 'banned'
+  until: string
 }
 
 export type SystemErrorCode =
@@ -75,6 +82,8 @@ export type SystemErrorCode =
 
 export interface SystemErrorPayload {
   code: SystemErrorCode
+  muteRemainingMs?: number
+  remainingMs?: number
 }
 
 export type ReportErrorCode =

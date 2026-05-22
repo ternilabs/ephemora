@@ -17,6 +17,8 @@ function toTimestamp(value: string): number | null {
   return Number.isNaN(timestamp) ? null : timestamp
 }
 
+const PENDING_MATCH_WINDOW_MS = 30_000
+
 function pendingId(): string {
   const hasRandomUuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
   const id = hasRandomUuid
@@ -98,16 +100,18 @@ export function useMessages() {
       }
 
       const payloadTimestamp = toTimestamp(payload.createdAt)
-      let pendingIndex = -1
-      let bestScore = Number.POSITIVE_INFINITY
+      let pendingIndexWithinWindow = -1
+      let bestWindowScore = Number.POSITIVE_INFINITY
+      let pendingIndexFallback = -1
+      let bestFallbackScore = Number.POSITIVE_INFINITY
 
       previous.forEach((message, index) => {
         if (
           message.deliveryStatus !== 'pending' ||
-          message.content !== payload.content ||
           message.nickname !== payload.nickname ||
           message.authorUserId !== payload.authorUserId ||
-          message.replyToMessageId !== payload.replyToMessageId
+          message.replyToMessageId !== payload.replyToMessageId ||
+          message.content !== payload.content
         ) {
           return
         }
@@ -118,12 +122,22 @@ export function useMessages() {
             ? Math.abs(payloadTimestamp - pendingTimestamp)
             : index
 
-        if (score < bestScore) {
-          bestScore = score
-          pendingIndex = index
+        if (score < bestFallbackScore) {
+          bestFallbackScore = score
+          pendingIndexFallback = index
+        }
+
+        if (score > PENDING_MATCH_WINDOW_MS) {
+          return
+        }
+
+        if (score < bestWindowScore) {
+          bestWindowScore = score
+          pendingIndexWithinWindow = index
         }
       })
 
+      const pendingIndex = pendingIndexWithinWindow >= 0 ? pendingIndexWithinWindow : pendingIndexFallback
       if (pendingIndex >= 0) {
         const next = [...previous]
         next[pendingIndex] = confirmedMessage

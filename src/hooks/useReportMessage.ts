@@ -46,7 +46,12 @@ export function useReportMessage(socket: Socket | null) {
           resolve({ ok: false, error: 'timeout' })
         }, REPORT_ACK_TIMEOUT_MS)
 
-        socket.emit('message:report', payload, (ack: ReportAck) => {
+        const emitPayload: MessageReportPayload = {
+          messageId: payload.messageId,
+          ...(payload.reason ? { reason: payload.reason } : {}),
+        }
+
+        socket.emit('message:report', emitPayload, (ack: ReportAck) => {
           if (settled) {
             return
           }
@@ -62,7 +67,11 @@ export function useReportMessage(socket: Socket | null) {
       }
 
       if (ack.error === 'already_reported') {
-        notifications.show({ color: 'blue', title: 'Already reported', message: 'We got it.' })
+        notifications.show({
+          color: 'blue',
+          title: 'Already reported',
+          message: 'We got it.',
+        })
         return
       }
 

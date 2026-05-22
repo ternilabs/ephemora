@@ -4,7 +4,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ActionIcon, Box, Center, Container, Drawer, Loader, Skeleton, Stack, Text, UnstyledButton } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { modals } from '@mantine/modals'
-import { PanelLeftOpen, PanelRightOpen, ServerOff } from 'lucide-react'
+import { PanelLeftOpen, PanelRightOpen, RefreshCw, ServerOff } from 'lucide-react'
 import JoinButton from '../components/auth/JoinButton'
 import MessageInput from '../components/chat/MessageInput'
 import MessageList from '../components/chat/MessageList'
@@ -44,10 +44,33 @@ function toChatMessage(row: MessageRow): ChatMessage {
   }
 }
 
+function moderationRank(status: ChatMessage['moderationStatus']): number {
+  if (status === 'hidden') return 3
+  if (status === 'under_review') return 2
+  return 1
+}
+
+function mergeMessage(existing: ChatMessage, incoming: ChatMessage): ChatMessage {
+  const existingRank = moderationRank(existing.moderationStatus)
+  const incomingRank = moderationRank(incoming.moderationStatus)
+  const moderationStatus = incomingRank >= existingRank ? incoming.moderationStatus : existing.moderationStatus
+
+  if (existing.deliveryStatus === 'pending' && incoming.deliveryStatus === 'confirmed') {
+    return { ...incoming, moderationStatus }
+  }
+
+  if (existing.deliveryStatus === 'confirmed' && incoming.deliveryStatus === 'pending') {
+    return { ...existing, moderationStatus }
+  }
+
+  return { ...incoming, moderationStatus }
+}
+
 function dedupeById(messages: ChatMessage[]): ChatMessage[] {
   const byId = new Map<string, ChatMessage>()
   for (const m of messages) {
-    byId.set(m.id, m)
+    const existing = byId.get(m.id)
+    byId.set(m.id, existing ? mergeMessage(existing, m) : m)
   }
   return [...byId.values()]
 }
@@ -88,6 +111,7 @@ function ChatRoute() {
     clearMessages,
   } = useMessages()
   const [hideHistoryMessages, setHideHistoryMessages] = useState(false)
+  const [isResetting, setIsResetting] = useState(false)
   const resetRequestRef = useRef(0)
   const [replyTarget, setReplyTarget] = useState<{ id: string; preview: ReplyPreview } | null>(null)
 
@@ -96,14 +120,18 @@ function ChatRoute() {
     liveMessagesRef.current = liveMessages
   }, [liveMessages])
 
-  const removeMostRecentPending = useCallback(() => {
-    const pending = [...liveMessagesRef.current].reverse().find((m) => m.deliveryStatus === 'pending')
+  const removeMostRecentPending = useCallback((pendingId?: string) => {
+    const pending =
+      pendingId !== undefined
+        ? liveMessagesRef.current.find((message) => message.id === pendingId)
+        : [...liveMessagesRef.current].reverse().find((message) => message.deliveryStatus === 'pending')
     if (pending) {
       removeMessageById(pending.id)
     }
   }, [removeMessageById])
 
   const handleReset = useCallback(() => {
+    setIsResetting(true)
     clearMessages()
     setReplyTarget(null)
     setHideHistoryMessages(true)
@@ -114,6 +142,7 @@ function ChatRoute() {
     void refetchHistory().finally(() => {
       if (resetRequestRef.current === requestId) {
         setHideHistoryMessages(false)
+        setIsResetting(false)
       }
     })
   }, [bootstrap, clearMessages, historyLimit, queryClient, refetchHistory])
@@ -208,10 +237,6 @@ function ChatRoute() {
   })
   const mentionUsers = [...mentionUsersById.values()]
   const mentionNicknames = [...new Set(mentionUsers.map((user) => user.nickname))]
-  const reportedMessages = [...messages]
-    .reverse()
-    .filter((message) => message.moderationStatus === 'under_review')
-    .slice(0, 12)
   const hasAnyLoadedMessages = messages.length > 0
   const currentAuthorUserId = socketState.authorUserId ?? undefined
   const shouldShowFeedSkeleton =
@@ -221,14 +246,28 @@ function ChatRoute() {
   const pendingOwnAuthorUserId = userId ? `self:${userId}` : undefined
 
   const openReport = (m: ChatMessage) => {
-    const id = modals.open({
+    let modalId = ''
+
+    const setSubmittingState = (isSubmitting: boolean) => {
+      if (!modalId) return
+      modals.updateModal({
+        modalId,
+        closeOnClickOutside: !isSubmitting,
+        closeOnEscape: !isSubmitting,
+        withCloseButton: !isSubmitting,
+      })
+    }
+
+    modalId = modals.open({
       title: 'Report message',
-      closeOnClickOutside: false,
-      closeOnEscape: false,
+      closeOnClickOutside: true,
+      closeOnEscape: true,
+      withCloseButton: true,
       children: (
         <ReportMessageModal
           contentPreview={m.content}
-          onCancel={() => modals.close(id)}
+          onSubmittingChange={setSubmittingState}
+          onCancel={() => modals.close(modalId)}
           onSubmit={async (reason) => {
             const ack = await report.mutateAsync({
               messageId: m.id,
@@ -236,7 +275,8 @@ function ChatRoute() {
             })
 
             if (ack.ok || ack.error === 'already_reported') {
-              modals.close(id)
+              applyModerationUpdate({ messageId: m.id, moderationStatus: 'under_review' })
+              modals.close(modalId)
             }
           }}
         />
@@ -283,7 +323,18 @@ function ChatRoute() {
           >
             <Box className="ep3-mobile-panel">
               <Box className="ep3-right ep3-right-mobile">
-                <RightPanelContent secondsRemaining={secondsRemaining} reportedMessages={reportedMessages} />
+                <RightPanelContent
+                  secondsRemaining={secondsRemaining}
+                  isAuthed={isAuthed}
+                  nickname={socketState.nickname ?? (isAuthed ? 'Anonymous' : null)}
+                  nicknameLoading={isIdentityLoading}
+                  showModerationAction={moderatorAccess.isModerator && !moderatorAccess.isChecking}
+                  onModeration={() => navigate({ to: '/moderation' })}
+                  onSignOut={() => {
+                    setReplyTarget(null)
+                    void signOut()
+                  }}
+                />
               </Box>
             </Box>
           </Drawer>
@@ -329,7 +380,17 @@ function ChatRoute() {
           </Box>
         </Box>
 
-        {shouldShowFeedSkeleton ? (
+        {isResetting ? (
+          <Box className="ep3-feed ep3-chat-state-feed">
+            <Container className="ep3-chat-state" size="sm" py="xl">
+              <Stack gap="xs" align="center" role="status" aria-live="polite" aria-atomic="true">
+                <RefreshCw size={28} className="ep3-chat-state-icon ep3-chat-state-icon-spin" aria-hidden="true" />
+                <Text className="ep3-chat-state-title">Resetting chat…</Text>
+                <Text className="ep3-chat-state-description">A new UTC day is starting. Please wait a moment.</Text>
+              </Stack>
+            </Container>
+          </Box>
+        ) : shouldShowFeedSkeleton ? (
           <Box className="ep3-feed ep3-feed-skeleton">
             <Box className="ep3-day-divider">
               <Box className="ep3-day-divider-line" />
@@ -396,25 +457,24 @@ function ChatRoute() {
             cooldownWindowMs={cooldownWindowMs}
             cooldownRemainingMs={socketState.cooldownRemainingMs}
             muteRemainingMs={socketState.muteRemainingMs}
-            nicknameLoading={isIdentityLoading}
-            nickname={socketState.nickname ?? (isAuthed ? 'Anonymous' : null)}
-            sendDisabled={socketState.status !== 'connected'}
-            showModeratorAction={moderatorAccess.isModerator && !moderatorAccess.isChecking}
-            onModerator={() => navigate({ to: '/moderation' })}
-            onSignOut={() => {
-              setReplyTarget(null)
-              void signOut()
-            }}
+            isMuted={socketState.isMuted}
+            sendDisabled={socketState.status !== 'connected' || isResetting}
+            inputLocked={isResetting}
             replyTarget={replyTarget}
             mentionUsers={mentionUsers}
             onClearReply={() => setReplyTarget(null)}
             onSend={(content, replyToMessageId) => {
               const preview = replyTarget?.preview
               if (socketState.nickname && userId) {
-                addPendingMessage(content, socketState.nickname, currentAuthorUserId ?? `self:${userId}`, {
+                const pendingMessageId = addPendingMessage(content, socketState.nickname, currentAuthorUserId ?? `self:${userId}`, {
                   ...(replyToMessageId ? { replyToMessageId } : {}),
                   ...(preview ? { replyPreview: preview } : {}),
                 })
+                const sent = socketState.sendMessage(content, replyToMessageId, pendingMessageId)
+                if (!sent) {
+                  removeMessageById(pendingMessageId)
+                }
+                return
               }
               socketState.sendMessage(content, replyToMessageId)
             }}
@@ -429,7 +489,18 @@ function ChatRoute() {
       </Box>
 
       <Box className="ep3-right">
-        <RightPanelContent secondsRemaining={secondsRemaining} reportedMessages={reportedMessages} />
+        <RightPanelContent
+          secondsRemaining={secondsRemaining}
+          isAuthed={isAuthed}
+          nickname={socketState.nickname ?? (isAuthed ? 'Anonymous' : null)}
+          nicknameLoading={isIdentityLoading}
+          showModerationAction={moderatorAccess.isModerator && !moderatorAccess.isChecking}
+          onModeration={() => navigate({ to: '/moderation' })}
+          onSignOut={() => {
+            setReplyTarget(null)
+            void signOut()
+          }}
+        />
       </Box>
     </Box>
   )
