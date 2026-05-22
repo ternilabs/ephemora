@@ -1,4 +1,4 @@
-import { Stack, Text } from '@mantine/core'
+import { Loader, Stack, Text } from '@mantine/core'
 import { useModerationActions } from '../../hooks/useModerationActions'
 import { useModerationReports } from '../../hooks/useModerationReports'
 import ModerationMessageCard from './ModerationMessageCard'
@@ -19,7 +19,14 @@ export default function ReviewQueueTab(props: { enabled: boolean }) {
     actions.markReviewed.isPending ||
     actions.banUser.isPending
 
-  if (reports.isLoading) return <Text className="ep3-mod-state">Loading review queue…</Text>
+  if (reports.isLoading) {
+    return (
+      <Stack className="ep3-mod-panel-loading" gap={10} align="center" justify="center">
+        <Loader type="dots" size={20} />
+        <Text className="ep3-mod-state">Loading review queue…</Text>
+      </Stack>
+    )
+  }
   if (reports.isError) {
     return (
       <Stack gap={4} py="md">

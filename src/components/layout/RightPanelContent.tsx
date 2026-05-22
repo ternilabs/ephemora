@@ -1,6 +1,4 @@
-import { Box, SegmentedControl, Text, useMantineColorScheme } from '@mantine/core'
-import type { ChatMessage } from '../../types/chat'
-import { formatTime } from '../../utils/formatTime'
+import { Box, SegmentedControl, Text, UnstyledButton, useMantineColorScheme } from '@mantine/core'
 
 function formatSeconds(seconds: number): string {
   const h = Math.floor(seconds / 3600)
@@ -11,9 +9,14 @@ function formatSeconds(seconds: number): string {
 
 export default function RightPanelContent(props: {
   secondsRemaining: number
-  reportedMessages: ChatMessage[]
+  isAuthed?: boolean
+  nickname?: string | null
+  nicknameLoading?: boolean
+  showModerationAction?: boolean
+  onModeration?: () => void
+  onSignOut?: () => void
 }) {
-  const { secondsRemaining, reportedMessages } = props
+  const { secondsRemaining } = props
   const { colorScheme, setColorScheme } = useMantineColorScheme()
   const appearanceValue = colorScheme === 'auto' ? 'system' : colorScheme
 
@@ -51,35 +54,27 @@ export default function RightPanelContent(props: {
         </Box>
       </Box>
 
-      <Box className="ep3-reports-section">
-        <Box className="ep3-info-label-row">
-          <Text className="ep3-info-label">Room Under Review</Text>
-          <Text className="ep3-count-pill">{reportedMessages.length} active</Text>
+      {props.isAuthed ? (
+        <Box className="ep3-info-section ep3-account-section">
+          <Text className="ep3-info-label">Session</Text>
+          <Text className="ep3-session-name">
+            You are{' '}
+            <strong>{props.nicknameLoading ? 'Loading…' : (props.nickname ?? 'Anonymous')}</strong>
+          </Text>
+          <Box className="ep3-session-actions">
+            {props.showModerationAction ? (
+              <UnstyledButton className="ep3-session-action ep3-session-action-mod" onClick={props.onModeration}>
+                Moderation
+              </UnstyledButton>
+            ) : null}
+            {props.onSignOut ? (
+              <UnstyledButton className="ep3-session-action ep3-session-action-signout" onClick={props.onSignOut}>
+                Sign out
+              </UnstyledButton>
+            ) : null}
+          </Box>
         </Box>
-
-        <Box className="ep3-reports-scroll">
-          {reportedMessages.length === 0 ? (
-            <Text className="ep3-reported-empty">No active room-level review signals.</Text>
-          ) : (
-            reportedMessages.map((message) => (
-              <Box key={message.id} className="ep3-reported-item">
-                <Box className="ep3-reported-top">
-                  <Text className="ep3-reported-nick">{message.nickname}</Text>
-                  <Text className="ep3-reported-time">{formatTime(message.createdAt)}</Text>
-                </Box>
-                <Text className="ep3-reported-preview">
-                  {message.moderationStatus === 'under_review'
-                    ? 'This message has been flagged for review.'
-                    : message.content}
-                </Text>
-                <Box className="ep3-reported-meta">
-                  <Text className="ep3-reported-badge">Under review</Text>
-                </Box>
-              </Box>
-            ))
-          )}
-        </Box>
-      </Box>
+      ) : null}
     </Box>
   )
 }

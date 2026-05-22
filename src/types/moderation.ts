@@ -8,6 +8,13 @@ export interface ModerationReport {
   ai_verdict: string | null
   ai_confidence: number | null
   ai_reason: string | null
+  ai_severity: string | null
+  ai_intent: string | null
+  ai_targeting: string | null
+  ai_categories: string[] | null
+  policy_action: string | null
+  policy_reason: string | null
+  offense_count_at_decision: number | null
   manual_review_status: string
   created_at: string
   daily_identities: { nickname: string } | null

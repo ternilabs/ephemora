@@ -1,6 +1,6 @@
-import { Box, Button, Group, Skeleton, Stack, Text, Textarea, UnstyledButton } from '@mantine/core'
+import { Box, Group, Stack, Text, Textarea, UnstyledButton } from '@mantine/core'
 import { SendHorizontal } from 'lucide-react'
-import { useId, useMemo, useRef, useState } from 'react'
+import { useEffect, useId, useMemo, useRef, useState } from 'react'
 import type { PresenceRosterUser, ReplyPreview } from '../../types/chat'
 
 interface MentionDraft {
@@ -9,17 +9,23 @@ interface MentionDraft {
   query: string
 }
 
+type MutedIndicator =
+  | {
+      type: 'active'
+    }
+  | {
+      type: 'countdown'
+      label: string
+    }
+
 export default function MessageInput(props: {
   maxLength: number
   cooldownWindowMs: number
   cooldownRemainingMs: number
   muteRemainingMs: number
-  nickname?: string | null
-  nicknameLoading?: boolean
+  isMuted?: boolean
   sendDisabled?: boolean
-  showModeratorAction?: boolean
-  onModerator?: () => void
-  onSignOut?: () => void
+  inputLocked?: boolean
   replyTarget?: { id: string; preview: ReplyPreview } | null
   mentionUsers: PresenceRosterUser[]
   onClearReply?: () => void
@@ -32,12 +38,33 @@ export default function MessageInput(props: {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const mentionListboxId = useId()
 
+  useEffect(() => {
+    if (!props.replyTarget) return
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    requestAnimationFrame(() => {
+      textarea.focus()
+      const nextCaret = textarea.value.length
+      textarea.setSelectionRange(nextCaret, nextCaret)
+    })
+  }, [props.replyTarget])
+
   const len = value.length
   const trimmedValue = value.trim()
   const overLimit = len > props.maxLength
   const empty = trimmedValue.length === 0
-  const muted = props.muteRemainingMs > 0
+  const muted = (props.isMuted ?? false) || props.muteRemainingMs > 0
   const coolingDown = props.cooldownRemainingMs > 0
+  const mutedIndicator = useMemo<MutedIndicator | null>(() => {
+    if (!muted) return null
+    if (props.muteRemainingMs <= 0) return { type: 'active' }
+    const totalSeconds = Math.max(0, Math.ceil(props.muteRemainingMs / 1000))
+    const minutes = Math.floor(totalSeconds / 60)
+    const seconds = totalSeconds % 60
+    if (minutes <= 0) return { type: 'countdown', label: `${seconds}s` }
+    return { type: 'countdown', label: `${minutes}m ${String(seconds).padStart(2, '0')}s` }
+  }, [muted, props.muteRemainingMs])
 
   const charColor = len > props.maxLength * 0.8 ? 'red' : 'dimmed'
 
@@ -47,7 +74,8 @@ export default function MessageInput(props: {
     return Math.max(0, Math.min(100, (props.cooldownRemainingMs / props.cooldownWindowMs) * 100))
   }, [coolingDown, props.cooldownRemainingMs, props.cooldownWindowMs])
 
-  const disabled = !!props.sendDisabled || muted || coolingDown || empty || overLimit
+  const inputDisabled = !!props.sendDisabled || !!props.inputLocked || muted || coolingDown
+  const disabled = inputDisabled || empty || overLimit
 
   const mentionDraft = useMemo<MentionDraft | null>(() => {
     const caret = Math.max(0, Math.min(caretPosition, value.length))
@@ -115,26 +143,24 @@ export default function MessageInput(props: {
             <Text className="ep3-reply-chip-title">Replying to {props.replyTarget.preview.nickname}</Text>
             <Text className="ep3-reply-chip-preview">{props.replyTarget.preview.content}</Text>
           </Box>
-          <UnstyledButton className="ep3-reply-chip-close" onClick={props.onClearReply} aria-label="Cancel reply">
+          <UnstyledButton
+            className="ep3-reply-chip-close"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => {
+              props.onClearReply?.()
+              requestAnimationFrame(() => {
+                textareaRef.current?.focus()
+              })
+            }}
+            aria-label="Cancel reply"
+          >
             ×
           </UnstyledButton>
         </Group>
       ) : null}
-      {props.nicknameLoading ? (
-        <Skeleton className="ep3-compose-label-skeleton" height={18} width={220} radius={0} />
-      ) : (
-        <Text className="ep3-compose-label">
-          You are <strong>{props.nickname ?? 'Anonymous'}</strong>
-        </Text>
-      )}
-      {muted ? (
-        <Text className="ep3-compose-muted">
-          Muted ({Math.ceil(props.muteRemainingMs / 1000)}s remaining)
-        </Text>
-      ) : null}
-
       <Group gap={8} wrap="nowrap" align="flex-end" className="ep3-compose-editor-row">
         <Textarea
+          disabled={inputDisabled}
           className="ep3-compose-input"
           placeholder="Write something ephemeral..."
           value={value}
@@ -144,9 +170,7 @@ export default function MessageInput(props: {
             setMentionDismissed(false)
           }}
           ref={textareaRef}
-          autosize
-          minRows={1}
-          maxRows={3}
+          rows={1}
           aria-autocomplete="list"
           aria-haspopup="listbox"
           aria-expanded={mentionListOpen}
@@ -223,24 +247,11 @@ export default function MessageInput(props: {
             <Box className="ep3-cooldown-fill" style={{ width: coolingDown ? `${cooldownProgress}%` : '0%' }} />
           </Box>
         </Group>
-
-        <Group gap={8} wrap="nowrap" className="ep3-compose-actions">
-          {props.showModeratorAction ? (
-            <Button className="ep3-compose-action ep3-compose-action-mod" size="compact-xs" onClick={props.onModerator}>
-              Moderator
-            </Button>
-          ) : null}
-          {props.onSignOut ? (
-            <Button
-              className="ep3-compose-action ep3-compose-action-signout"
-              variant="default"
-              size="compact-xs"
-              onClick={props.onSignOut}
-            >
-              Sign out
-            </Button>
-          ) : null}
-        </Group>
+        {mutedIndicator ? (
+          <Text className="ep3-compose-muted-inline">
+            {mutedIndicator.type === 'active' ? 'Muted' : `Muted for ${mutedIndicator.label}`}
+          </Text>
+        ) : null}
       </Group>
     </Stack>
   )

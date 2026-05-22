@@ -40,7 +40,9 @@ async function moderationFetch<T>(path: string, options?: RequestInit): Promise<
   const token = session?.access_token ?? ''
 
   const headers = new Headers(options?.headers)
-  headers.set('Content-Type', 'application/json')
+  if (options?.body !== undefined && options?.body !== null) {
+    headers.set('Content-Type', 'application/json')
+  }
   headers.set('Authorization', `Bearer ${token}`)
 
   const res = await fetch(`${BASE}${path}`, {
@@ -91,5 +93,20 @@ export const moderationApi = {
       method: 'POST',
       body: JSON.stringify({ reason }),
     }),
-  unbanUser: (id: string) => moderationFetch(`/moderation/users/${id}/unban`, { method: 'POST' }),
+  unbanUser: async (supabaseUserId: string, fallbackRecordId?: string) => {
+    try {
+      return await moderationFetch(`/moderation/users/${supabaseUserId}/unban`, { method: 'POST' })
+    } catch (error) {
+      const recordId = fallbackRecordId?.trim()
+      if (!(error instanceof ModerationApiError) || !recordId || recordId === supabaseUserId) {
+        throw error
+      }
+
+      if (error.status !== 404) {
+        throw error
+      }
+
+      return moderationFetch(`/moderation/users/${recordId}/unban`, { method: 'POST' })
+    }
+  },
 }

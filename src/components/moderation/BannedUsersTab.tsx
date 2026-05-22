@@ -1,4 +1,4 @@
-import { Stack, Text } from '@mantine/core'
+import { Loader, Stack, Text } from '@mantine/core'
 import { useBannedUsers } from '../../hooks/useBannedUsers'
 import { useModerationActions } from '../../hooks/useModerationActions'
 import ModerationUserRow from './ModerationUserRow'
@@ -8,7 +8,14 @@ export default function BannedUsersTab(props: { enabled: boolean }) {
   const actions = useModerationActions()
   const unbanPending = actions.unbanUser.isPending
 
-  if (banned.isLoading) return <Text className="ep3-mod-state">Loading banned users…</Text>
+  if (banned.isLoading) {
+    return (
+      <Stack className="ep3-mod-panel-loading" gap={10} align="center" justify="center">
+        <Loader type="dots" size={20} />
+        <Text className="ep3-mod-state">Loading banned users…</Text>
+      </Stack>
+    )
+  }
   if (banned.isError) return <Text className="ep3-mod-state">Failed to load banned users.</Text>
   if (!banned.data || banned.data.length === 0) {
     return <Text className="ep3-mod-state" py="md">No banned users.</Text>
@@ -20,7 +27,12 @@ export default function BannedUsersTab(props: { enabled: boolean }) {
         <ModerationUserRow
           key={user.id}
           user={user}
-          onUnban={() => actions.unbanUser.mutate(user.supabase_user_id)}
+          onUnban={() =>
+            actions.unbanUser.mutate({
+              supabaseUserId: user.supabase_user_id,
+              fallbackRecordId: user.id,
+            })
+          }
           unbanLoading={unbanPending}
           unbanDisabled={unbanPending}
         />

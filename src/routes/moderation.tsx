@@ -1,7 +1,8 @@
-import { Button, Drawer, Group, Stack, Tabs, Text } from '@mantine/core'
+import { Button, Drawer, Group, Loader, Stack, Tabs, Text } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { createFileRoute } from '@tanstack/react-router'
-import { useState } from 'react'
+import { AlertTriangle, ShieldX } from 'lucide-react'
+import { type ComponentType, type ReactNode, useState } from 'react'
 import AiActionsTab from '../components/moderation/AiActionsTab'
 import BannedUsersTab from '../components/moderation/BannedUsersTab'
 import TwoPanelPageLayout from '../components/layout/TwoPanelPageLayout'
@@ -17,6 +18,23 @@ export const Route = createFileRoute('/moderation')({
 
 type ModerationTab = 'review' | 'ai' | 'banned'
 
+function ModerationState(props: {
+  icon: ComponentType<{ size?: number; className?: string }>
+  title: string
+  description: string
+  action?: ReactNode
+}) {
+  const Icon = props.icon
+  return (
+    <Stack className="ep3-mod-center-state" gap={10} align="center" role="status" aria-live="polite">
+      <Icon size={28} className="ep3-mod-center-icon" />
+      <Text className="ep3-mod-center-title">{props.title}</Text>
+      <Text className="ep3-mod-center-description">{props.description}</Text>
+      {props.action ? <Stack gap={0}>{props.action}</Stack> : null}
+    </Stack>
+  )
+}
+
 function ModerationRoute() {
   const { isModerator, isLoading, isUnauthorized, isForbidden, isLoadFailed, isRetrying, retry } = useModerator()
   const [activeTab, setActiveTab] = useState<ModerationTab>('review')
@@ -26,7 +44,11 @@ function ModerationRoute() {
   if (isLoading) {
     return (
       <TwoPanelPageLayout title="Moderation">
-        <Text className="ep3-mod-state">Checking moderation access…</Text>
+        <Stack className="ep3-mod-center-state" gap={10} align="center" role="status" aria-live="polite">
+          <Loader size={28} type="dots" className="ep3-mod-center-icon" />
+          <Text className="ep3-mod-center-title">Checking access</Text>
+          <Text className="ep3-mod-center-description">Verifying moderator permissions.</Text>
+        </Stack>
       </TwoPanelPageLayout>
     )
   }
@@ -34,15 +56,11 @@ function ModerationRoute() {
   if (isUnauthorized) {
     return (
       <TwoPanelPageLayout title="Moderation">
-        <Text className="ep3-mod-state">401 — Sign in required. Please sign in again.</Text>
-      </TwoPanelPageLayout>
-    )
-  }
-
-  if (isForbidden) {
-    return (
-      <TwoPanelPageLayout title="Moderation">
-        <Text className="ep3-mod-state">403 — Moderator access required.</Text>
+        <ModerationState
+          icon={AlertTriangle}
+          title="Sign in required"
+          description="Your session is missing or expired. Sign in again to continue."
+        />
       </TwoPanelPageLayout>
     )
   }
@@ -50,26 +68,34 @@ function ModerationRoute() {
   if (isLoadFailed) {
     return (
       <TwoPanelPageLayout title="Moderation">
-        <Stack gap={6}>
-          <Text className="ep3-mod-state">Failed to verify moderation access.</Text>
-          <Button
-            variant="subtle"
-            className="ep3-mod-action ep3-mod-action-neutral"
-            onClick={() => retry()}
-            loading={isRetrying}
-            disabled={isRetrying}
-          >
-            Retry
-          </Button>
-        </Stack>
+        <ModerationState
+          icon={AlertTriangle}
+          title="Unable to verify access"
+          description="We couldn't validate moderation permissions right now."
+          action={
+            <Button
+              variant="subtle"
+              className="ep3-mod-action ep3-mod-action-neutral"
+              onClick={() => retry()}
+              loading={isRetrying}
+              disabled={isRetrying}
+            >
+              Retry
+            </Button>
+          }
+        />
       </TwoPanelPageLayout>
     )
   }
 
-  if (!isModerator) {
+  if (isForbidden || !isModerator) {
     return (
       <TwoPanelPageLayout title="Moderation">
-        <Text className="ep3-mod-state">Failed to verify moderation access.</Text>
+        <ModerationState
+          icon={ShieldX}
+          title="Access restricted"
+          description="Moderator role is required to open this workspace."
+        />
       </TwoPanelPageLayout>
     )
   }

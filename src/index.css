@@ -47,6 +47,33 @@ body {
   padding: 32px 20px;
 }
 
+.ep3-notfound-page {
+  display: grid;
+  place-items: center;
+  max-width: none;
+  width: 100%;
+  padding: 24px;
+}
+
+.ep3-notfound-card {
+  text-align: center;
+}
+
+.ep3-notfound-icon {
+  color: var(--ep-text-muted);
+}
+
+.ep3-notfound-link {
+  color: var(--ep-success);
+  text-decoration: none;
+  border-bottom: 1px solid color-mix(in oklab, var(--ep-success), transparent 45%);
+}
+
+.ep3-notfound-link:hover {
+  color: var(--ep-success-bright);
+  border-bottom-color: var(--ep-success-bright);
+}
+
 /* three-panel polished layout */
 .ep3-root {
   --left-width: 320px;
@@ -371,6 +398,10 @@ html[data-mantine-color-scheme='dark'] .ep3-connected-waking {
   color: var(--ep-text-muted);
 }
 
+.ep3-chat-state-icon-spin {
+  animation: ep3-spin 1s linear infinite;
+}
+
 .ep3-chat-state-title {
   margin: 0;
   color: var(--ep-text);
@@ -413,6 +444,16 @@ html[data-mantine-color-scheme='dark'] .ep3-connected-waking {
 .ep3-chat-state-retry:focus-visible {
   outline: 2px solid var(--ep-success);
   outline-offset: 2px;
+}
+
+@keyframes ep3-spin {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .ep3-outage-state {
@@ -897,13 +938,15 @@ html[data-mantine-color-scheme='dark'] .ep3-msg-review-tag {
   margin: 0;
 }
 
-.ep3-compose-muted {
+.ep3-compose-muted-inline {
   margin: 0;
   color: #ef4444;
-  font-size: 12px;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 11px;
+  white-space: nowrap;
 }
 
-html[data-mantine-color-scheme='dark'] .ep3-compose-muted {
+html[data-mantine-color-scheme='dark'] .ep3-compose-muted-inline {
   color: #f87171;
 }
 
@@ -1365,6 +1408,40 @@ html[data-mantine-color-scheme='dark'] .ep3-compose-action-signout:hover {
   line-height: 1.5;
 }
 
+.ep3-mod-panel-loading {
+  min-height: 220px;
+  height: 100%;
+  text-align: center;
+}
+
+.ep3-mod-center-state {
+  min-height: calc(100dvh - 170px);
+  justify-content: center;
+  text-align: center;
+  margin: 0 auto;
+  max-width: 420px;
+  padding: 12px;
+}
+
+.ep3-mod-center-icon {
+  color: var(--ep-text-muted);
+}
+
+.ep3-mod-center-title {
+  margin: 0;
+  color: var(--ep-text);
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+.ep3-mod-center-description {
+  margin: 0;
+  color: var(--ep-text-subtle);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
 .ep3-mod-log-root {
   min-height: 0;
 }
@@ -1527,6 +1604,78 @@ html[data-mantine-color-scheme='dark'] .ep3-mod-drawer-content {
 
 .ep3-appearance-section {
   margin-bottom: 16px;
+}
+
+.ep3-account-section {
+  margin-top: auto;
+}
+
+.ep3-session-name {
+  margin: 0 0 10px;
+  color: var(--ep-text-subtle);
+  font-size: 14px;
+}
+
+.ep3-session-name strong {
+  color: var(--ep-success);
+  font-weight: 600;
+}
+
+.ep3-session-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ep3-session-action {
+  border: 1px solid var(--ep-border);
+  background: var(--ep-surface);
+  color: var(--ep-text-subtle);
+  height: 28px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mantine-font-family-monospace);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  transition: border-color 120ms ease, color 120ms ease, background-color 120ms ease;
+}
+
+.ep3-session-action:hover {
+  border-color: color-mix(in oklab, var(--ep-success), var(--ep-border) 35%);
+  color: var(--ep-text);
+}
+
+.ep3-session-action:focus-visible {
+  outline: 2px solid var(--ep-success);
+  outline-offset: 1px;
+}
+
+.ep3-session-action-mod {
+  border-color: color-mix(in oklab, var(--ep-success), var(--ep-border) 45%);
+  color: var(--ep-success);
+}
+
+.ep3-session-action-signout {
+  border-color: var(--ep-border);
+}
+
+html[data-mantine-color-scheme='dark'] .ep3-session-action {
+  border-color: #2a2a2a;
+  background: #101010;
+  color: #b9b9b9;
+}
+
+html[data-mantine-color-scheme='dark'] .ep3-session-action:hover {
+  border-color: #3a3a3a;
+  color: #efefef;
+}
+
+html[data-mantine-color-scheme='dark'] .ep3-session-action-mod {
+  border-color: rgba(52, 211, 153, 0.45);
+  color: #34d399;
 }
 
 .ep3-info-label-row {

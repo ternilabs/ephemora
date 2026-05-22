@@ -1,4 +1,4 @@
-import { Group, Stack, Text } from '@mantine/core'
+import { Group, Loader, Stack, Text } from '@mantine/core'
 import { useModerationAiActions } from '../../hooks/useModerationAiActions'
 
 function getErrorMessage(error: unknown): string {
@@ -50,7 +50,14 @@ function summarizeAction(action: string): string {
 export default function AiActionsTab(props: { enabled: boolean }) {
   const actions = useModerationAiActions(props.enabled)
 
-  if (actions.isLoading) return <Text className="ep3-mod-state">Loading AI actions…</Text>
+  if (actions.isLoading) {
+    return (
+      <Stack className="ep3-mod-panel-loading" gap={10} align="center" justify="center">
+        <Loader type="dots" size={20} />
+        <Text className="ep3-mod-state">Loading AI actions…</Text>
+      </Stack>
+    )
+  }
   if (actions.isError) {
     return (
       <Stack gap={4} py="md">

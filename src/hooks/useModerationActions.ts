@@ -27,7 +27,8 @@ export function useModerationActions() {
       onSuccess: invalidate,
     }),
     unbanUser: useMutation({
-      mutationFn: (id: string) => moderationApi.unbanUser(id),
+      mutationFn: (args: { supabaseUserId: string; fallbackRecordId?: string }) =>
+        moderationApi.unbanUser(args.supabaseUserId, args.fallbackRecordId),
       onSuccess: invalidate,
     }),
   }
