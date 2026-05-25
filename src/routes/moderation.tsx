@@ -2,7 +2,7 @@ import { Button, Drawer, Group, Loader, Stack, Tabs, Text } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { createFileRoute } from '@tanstack/react-router'
 import { AlertTriangle, ShieldX } from 'lucide-react'
-import { type ComponentType, type ReactNode, useState } from 'react'
+import { type ComponentType, type ReactNode, useEffect, useState } from 'react'
 import AiActionsTab from '../components/moderation/AiActionsTab'
 import BannedUsersTab from '../components/moderation/BannedUsersTab'
 import TwoPanelPageLayout from '../components/layout/TwoPanelPageLayout'
@@ -40,6 +40,30 @@ function ModerationRoute() {
   const [activeTab, setActiveTab] = useState<ModerationTab>('review')
   const [aiLogsOpened, setAiLogsOpened] = useState(false)
   const useTabbedLayout = useMediaQuery('(max-width: 1200px)', false)
+
+  useEffect(() => {
+    const shouldLockScroll = aiLogsOpened && !useTabbedLayout
+    const html = document.documentElement
+    const body = document.body
+    const className = 'ep3-scroll-lock'
+
+    if (shouldLockScroll) {
+      html.classList.add(className)
+      body.classList.add(className)
+      return () => {
+        html.classList.remove(className)
+        body.classList.remove(className)
+      }
+    }
+
+    html.classList.remove(className)
+    body.classList.remove(className)
+
+    return () => {
+      html.classList.remove(className)
+      body.classList.remove(className)
+    }
+  }, [aiLogsOpened, useTabbedLayout])
 
   if (isLoading) {
     return (

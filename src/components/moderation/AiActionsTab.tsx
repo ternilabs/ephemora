@@ -47,6 +47,13 @@ function summarizeAction(action: string): string {
   return action.replace(/_/g, ' ')
 }
 
+function getActionBadgeTone(action: string): 'danger' | 'warn' | 'neutral' {
+  const normalized = action.trim().toLowerCase()
+  if (normalized.includes('ban')) return 'danger'
+  if (normalized.includes('mute') || normalized.includes('hide')) return 'warn'
+  return 'neutral'
+}
+
 export default function AiActionsTab(props: { enabled: boolean }) {
   const actions = useModerationAiActions(props.enabled)
 
@@ -109,8 +116,10 @@ export default function AiActionsTab(props: { enabled: boolean }) {
           <Stack key={action.id} gap={8} className="ep3-mod-log-item">
             <Group justify="space-between" align="flex-start" wrap="nowrap">
               <Group gap={6}>
-                <Text className="ep3-mod-chip ep3-mod-chip-neutral">{summarizeAction(action.action)}</Text>
-                <Text className="ep3-mod-chip ep3-mod-chip-neutral">{action.target_type}</Text>
+                <Text className={`ep3-mod-log-badge ep3-mod-log-badge-${getActionBadgeTone(action.action)}`}>
+                  {summarizeAction(action.action)}
+                </Text>
+                <Text className="ep3-mod-log-badge ep3-mod-log-badge-neutral">{action.target_type}</Text>
               </Group>
               <Text className="ep3-mod-card-time" title={formatAbsoluteTime(action.created_at)}>
                 {formatRelativeTime(action.created_at)}

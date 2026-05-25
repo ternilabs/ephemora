@@ -81,8 +81,14 @@ export const moderationApi = {
   },
   getAiActions: (signal?: AbortSignal) =>
     moderationFetch<ModerationAction[]>('/moderation/ai-actions', signal ? { signal } : undefined),
-  getBannedUsers: (signal?: AbortSignal) =>
-    moderationFetch<BannedUser[]>('/moderation/banned-users', signal ? { signal } : undefined),
+  getBannedUsers: (signal?: AbortSignal, query?: string) => {
+    const normalizedQuery = query?.trim() ?? ''
+    const search = normalizedQuery.length > 0 ? `?q=${encodeURIComponent(normalizedQuery)}` : ''
+    return moderationFetch<BannedUser[]>(
+      `/moderation/banned-users${search}`,
+      signal ? { signal } : undefined,
+    )
+  },
   hideMessage: (id: string) => moderationFetch(`/moderation/messages/${id}/hide`, { method: 'POST' }),
   restoreMessage: (id: string) =>
     moderationFetch(`/moderation/messages/${id}/restore`, { method: 'POST' }),
