@@ -43,6 +43,14 @@ export function getMuteRemainingMs(payload: unknown, nowMs = Date.now()): number
   )
   if (direct !== null) return direct
 
+  const directUntilString = getRecordString(record, ['until', 'mutedUntil', 'muted_until'])
+  if (directUntilString) {
+    const untilMs = Date.parse(directUntilString)
+    if (Number.isFinite(untilMs)) {
+      return Math.max(0, untilMs - nowMs)
+    }
+  }
+
   const restriction = getNestedRecord(record, 'restriction')
   if (!restriction) return null
 

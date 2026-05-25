@@ -21,7 +21,8 @@ import type {
   UserMutedPayload,
 } from '../types/chat'
 
-export type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'waking' | 'unavailable'
+export type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'waking' | 'unavailable' | 'blocked'
+type BlockedKind = 'muted' | 'banned' | null
 
 interface UseSocketOptions {
   token: string
@@ -119,6 +120,7 @@ export function useSocket(options: UseSocketOptions) {
   const [cooldownUntilMs, setCooldownUntilMs] = useState(0)
   const [muteUntilMs, setMuteUntilMs] = useState(() => readCachedMuteUntil(userId))
   const [muteFallbackActive, setMuteFallbackActive] = useState(false)
+  const [blockedKind, setBlockedKind] = useState<BlockedKind>(null)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
   const mountedAtRef = useRef(0)
@@ -131,6 +133,7 @@ export function useSocket(options: UseSocketOptions) {
   const pendingMessageIdsRef = useRef<string[]>([])
   const authorUserIdRef = useRef<string | null>(authorUserId)
   const lastUserIdRef = useRef(userId)
+  const statusRef = useRef<SocketStatus>(status)
 
   const socket: Socket | null = useMemo(() => {
     if (!enabled) return null
@@ -147,6 +150,10 @@ export function useSocket(options: UseSocketOptions) {
   useEffect(() => {
     authorUserIdRef.current = authorUserId
   }, [authorUserId])
+
+  useEffect(() => {
+    statusRef.current = status
+  }, [status])
 
   useEffect(() => {
     if (lastUserIdRef.current === userId) return
@@ -205,7 +212,11 @@ export function useSocket(options: UseSocketOptions) {
 
     const markConnectedActivity = () => {
       clearUnavailableTimer()
-      setStatus((currentStatus) => (currentStatus === 'connected' ? currentStatus : 'connected'))
+      setStatus((currentStatus) =>
+        currentStatus === 'blocked' || currentStatus === 'connected'
+          ? currentStatus
+          : 'connected',
+      )
     }
 
     const applyMuteState = (remainingMs: number | null): void => {
@@ -235,7 +246,18 @@ export function useSocket(options: UseSocketOptions) {
       clearUnavailableTimer()
       consumePendingMessage()
       applyMuteState(remainingMs)
-      setStatus('connected')
+      setBlockedKind('muted')
+      setStatus('blocked')
+    }
+
+    const syncBannedUserState = (): void => {
+      clearUnavailableTimer()
+      consumePendingMessage()
+      setMuteUntilMs(0)
+      setMuteFallbackActive(true)
+      setBlockedKind('banned')
+      setNowMs(Date.now())
+      setStatus('blocked')
     }
 
     const consumePendingMessage = () => {
@@ -250,16 +272,18 @@ export function useSocket(options: UseSocketOptions) {
 
       setStatus('connected')
       setMuteFallbackActive(false)
+      setBlockedKind(null)
     }
 
     const onDisconnect = () => {
       setStatus('disconnected')
       setPresenceCount(0)
+      setBlockedKind(null)
     }
 
     const onConnectError = (error: unknown) => {
       if (isBannedConnectError(error)) {
-        consumePendingMessage()
+        syncBannedUserState()
         notifications.show({
           color: 'red',
           title: 'Banned',
@@ -303,6 +327,7 @@ export function useSocket(options: UseSocketOptions) {
     const onIdentity = (payload: UserIdentityPayload) => {
       markConnectedActivity()
       setMuteFallbackActive(false)
+      setBlockedKind(null)
       setNickname(payload.nickname)
       setAuthorUserId(payload.authorUserId)
       writeCachedIdentity(userId, {
@@ -360,9 +385,9 @@ export function useSocket(options: UseSocketOptions) {
       if (!Number.isFinite(untilMs)) return
 
       const remainingMs = Math.max(0, untilMs - Date.now())
-      syncMutedUserState(remainingMs)
-
-      if (payload.action === 'banned') {
+      const action = payload.action.toLowerCase()
+      if (action.includes('ban')) {
+        syncBannedUserState()
         notifications.show({
           color: 'red',
           title: 'Banned',
@@ -371,6 +396,7 @@ export function useSocket(options: UseSocketOptions) {
         return
       }
 
+      syncMutedUserState(remainingMs)
       notifications.show({
         color: 'yellow',
         title: 'Muted',
@@ -383,6 +409,7 @@ export function useSocket(options: UseSocketOptions) {
       consumePendingMessage()
       const code = payload.code.toLowerCase()
       if (code === 'banned' || code === 'auth:banned') {
+        syncBannedUserState()
         notifications.show({
           color: 'red',
           title: 'Banned',
@@ -433,6 +460,7 @@ export function useSocket(options: UseSocketOptions) {
       setPresenceCount(0)
       setMuteUntilMs(0)
       setMuteFallbackActive(false)
+      setBlockedKind(null)
       writeCachedMuteUntil(userId, 0)
       notifications.show({
         color: 'green',
@@ -520,11 +548,12 @@ export function useSocket(options: UseSocketOptions) {
   const effectiveNickname = nickname ?? cachedIdentity?.nickname ?? null
   const effectiveAuthorUserId = authorUserId ?? cachedIdentity?.authorUserId ?? null
   const muteRemainingMs = Math.max(0, muteUntilMs - nowMs)
-  const isMuted = muteFallbackActive || muteRemainingMs > 0
+  const isMuted = blockedKind === 'muted' && (muteFallbackActive || muteRemainingMs > 0)
 
   return {
     socket,
     status,
+    blockedKind,
     nickname: effectiveNickname,
     authorUserId: effectiveAuthorUserId,
     presenceCount,

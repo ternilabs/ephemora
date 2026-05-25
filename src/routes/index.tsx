@@ -79,8 +79,21 @@ function getConnectionBadgeState(status: SocketStatus): Exclude<SocketStatus, 'd
   return status === 'disconnected' ? 'offline' : status
 }
 
-function getConnectionLabel(status: SocketStatus): string {
+function formatMutedCountdown(remainingMs: number): string {
+  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
+  const minutes = Math.floor(totalSeconds / 60)
+  const seconds = totalSeconds % 60
+  if (minutes <= 0) return `${seconds}s`
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`
+}
+
+function getConnectionLabel(status: SocketStatus, blockedKind: 'muted' | 'banned' | null, muteRemainingMs: number): string {
   if (status === 'connected') return 'Connected'
+  if (status === 'blocked') {
+    if (blockedKind === 'banned') return 'Banned'
+    if (blockedKind === 'muted') return muteRemainingMs > 0 ? `Muted ${formatMutedCountdown(muteRemainingMs)}` : 'Muted'
+    return 'Blocked'
+  }
   if (status === 'connecting') return 'Connecting'
   if (status === 'waking') return 'Waking up…'
   if (status === 'unavailable') return 'Unavailable'
@@ -160,7 +173,7 @@ function ChatRoute() {
   const presenceRoster = usePresenceRoster(socketState.socket)
   const report = useReportMessage(socketState.socket)
   const connectionState = getConnectionBadgeState(socketState.status)
-  const connectionLabel = getConnectionLabel(socketState.status)
+  const connectionLabel = getConnectionLabel(socketState.status, socketState.blockedKind, socketState.muteRemainingMs)
   const resetAt = bootstrap.data?.reset.resetAt
   const maxLen = bootstrap.data?.limits.messageMaxLength ?? 500
   const cooldownWindowMs = (bootstrap.data?.limits.messageCooldownSeconds ?? 5) * 1000

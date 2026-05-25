@@ -19,6 +19,29 @@ function toTimestamp(value: string): number | null {
 
 const PENDING_MATCH_WINDOW_MS = 30_000
 
+function getMessageMatchScore(
+  payload: MessageNewPayload,
+  message: ChatMessage,
+  payloadTimestamp: number | null,
+  index: number,
+): number | null {
+  if (
+    message.deliveryStatus !== 'pending' ||
+    message.nickname !== payload.nickname ||
+    message.authorUserId !== payload.authorUserId ||
+    message.replyToMessageId !== payload.replyToMessageId
+  ) {
+    return null
+  }
+
+  const pendingTimestamp = toTimestamp(message.createdAt)
+  if (payloadTimestamp !== null && pendingTimestamp !== null) {
+    return Math.abs(payloadTimestamp - pendingTimestamp)
+  }
+
+  return index
+}
+
 function pendingId(): string {
   const hasRandomUuid = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
   const id = hasRandomUuid
@@ -100,44 +123,30 @@ export function useMessages() {
       }
 
       const payloadTimestamp = toTimestamp(payload.createdAt)
-      let pendingIndexWithinWindow = -1
-      let bestWindowScore = Number.POSITIVE_INFINITY
-      let pendingIndexFallback = -1
-      let bestFallbackScore = Number.POSITIVE_INFINITY
+      let strictPendingIndex = -1
+      let strictBestScore = Number.POSITIVE_INFINITY
+      let relaxedPendingIndex = -1
+      let relaxedBestScore = Number.POSITIVE_INFINITY
 
       previous.forEach((message, index) => {
-        if (
-          message.deliveryStatus !== 'pending' ||
-          message.nickname !== payload.nickname ||
-          message.authorUserId !== payload.authorUserId ||
-          message.replyToMessageId !== payload.replyToMessageId ||
-          message.content !== payload.content
-        ) {
+        const score = getMessageMatchScore(payload, message, payloadTimestamp, index)
+        if (score === null || score > PENDING_MATCH_WINDOW_MS) {
           return
         }
 
-        const pendingTimestamp = toTimestamp(message.createdAt)
-        const score =
-          payloadTimestamp !== null && pendingTimestamp !== null
-            ? Math.abs(payloadTimestamp - pendingTimestamp)
-            : index
-
-        if (score < bestFallbackScore) {
-          bestFallbackScore = score
-          pendingIndexFallback = index
-        }
-
-        if (score > PENDING_MATCH_WINDOW_MS) {
+        if (message.content === payload.content && score < strictBestScore) {
+          strictBestScore = score
+          strictPendingIndex = index
           return
         }
 
-        if (score < bestWindowScore) {
-          bestWindowScore = score
-          pendingIndexWithinWindow = index
+        if (score < relaxedBestScore) {
+          relaxedBestScore = score
+          relaxedPendingIndex = index
         }
       })
 
-      const pendingIndex = pendingIndexWithinWindow >= 0 ? pendingIndexWithinWindow : pendingIndexFallback
+      const pendingIndex = strictPendingIndex >= 0 ? strictPendingIndex : relaxedPendingIndex
       if (pendingIndex >= 0) {
         const next = [...previous]
         next[pendingIndex] = confirmedMessage
