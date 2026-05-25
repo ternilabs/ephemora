@@ -53,9 +53,12 @@ export default function MessageList(props: {
   currentPendingAuthorUserId: string | undefined
   canReport: boolean
   canReply: boolean
+  canModerate: boolean
   mentionNicknames: string[]
   onReport: (message: ChatMessage) => void
   onReply: (message: ChatMessage) => void
+  onMute: (message: ChatMessage) => void
+  onBan: (message: ChatMessage) => void
   onLoadMore: () => void | Promise<unknown>
   hasMore: boolean
   loadingMore: boolean
@@ -66,9 +69,12 @@ export default function MessageList(props: {
     currentPendingAuthorUserId,
     canReport,
     canReply,
+    canModerate,
     mentionNicknames,
     onReport,
     onReply,
+    onMute,
+    onBan,
     onLoadMore,
     hasMore,
     loadingMore,
@@ -301,9 +307,12 @@ export default function MessageList(props: {
                 isOwn={isOwn}
                 canReport={canReport}
                 canReply={canReply && isSameUtcDay(m.createdAt)}
+                canModerate={canModerate}
                 mentionNicknames={mentionNicknames}
                 onReport={() => onReport(m)}
                 onReply={() => onReply(m)}
+                onMute={() => onMute(m)}
+                onBan={() => onBan(m)}
                 onJumpToReplyTarget={() => jumpToMessage(m.replyToMessageId)}
               />
             </Box>

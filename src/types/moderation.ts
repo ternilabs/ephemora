@@ -41,3 +41,15 @@ export interface BannedUser {
   ban_source: string | null
   banned_at: string | null
 }
+
+export type ModerationActionErrorCode =
+  | 'validation_failed'
+  | 'not_found'
+  | 'forbidden'
+  | (string & {})
+
+export interface MuteUserResponse {
+  ok: boolean
+  until: string
+  remainingMs: number
+}

@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { notifications } from '@mantine/notifications'
 import { ActionIcon, Box, Center, Container, Drawer, Loader, Skeleton, Stack, Text, UnstyledButton } from '@mantine/core'
 import { useMediaQuery } from '@mantine/hooks'
 import { modals } from '@mantine/modals'
@@ -10,17 +11,22 @@ import MessageInput from '../components/chat/MessageInput'
 import MessageList from '../components/chat/MessageList'
 import LeftSidebar from '../components/layout/LeftSidebar'
 import RightPanelContent from '../components/layout/RightPanelContent'
+import BanUserModal from '../components/modals/BanUserModal'
+import MuteUserModal from '../components/modals/MuteUserModal'
 import ReportMessageModal from '../components/modals/ReportMessageModal'
 import { useAuth } from '../hooks/useAuth'
 import { useBootstrap } from '../hooks/useBootstrap'
 import { useCountdown } from '../hooks/useCountdown'
 import { useMessageHistory } from '../hooks/useMessageHistory'
 import { useMessages } from '../hooks/useMessages'
+import { useModerationActions } from '../hooks/useModerationActions'
 import { useModeratorAccessCache } from '../hooks/useModerator'
 import { usePresenceRoster } from '../hooks/usePresenceRoster'
 import { useReportMessage } from '../hooks/useReportMessage'
 import { useSocket, type SocketStatus } from '../hooks/useSocket'
+import { ModerationApiError } from '../lib/moderationApi'
 import type { ChatMessage, MessageRow, PresenceRosterUser, ReplyPreview } from '../types/chat'
+import type { ModerationActionErrorCode } from '../types/moderation'
 import { isSameUtcDay } from '../utils/getTodayUTC'
 
 export const Route = createFileRoute('/')({
@@ -100,12 +106,20 @@ function getConnectionLabel(status: SocketStatus, blockedKind: 'muted' | 'banned
   return 'Offline'
 }
 
+export function getModerationActionErrorMessage(code?: ModerationActionErrorCode): string {
+  if (code === 'validation_failed') return 'Invalid mute duration or reset window has expired.'
+  if (code === 'not_found') return 'User is no longer available.'
+  if (code === 'forbidden') return 'Moderator access is required for this action.'
+  return 'Server error while applying moderation action.'
+}
+
 function ChatRoute() {
   const navigate = useNavigate({ from: '/' })
   const queryClient = useQueryClient()
   const bootstrap = useBootstrap()
   const { session, isLoading: authLoading, signInWithDiscord, signInWithGitHub, signOut } = useAuth()
   const moderatorAccess = useModeratorAccessCache()
+  const moderationActions = useModerationActions()
   const token = session?.access_token ?? ''
   const userId = session?.user.id
   const isAuthed = token.length > 0
@@ -250,6 +264,7 @@ function ChatRoute() {
   })
   const mentionUsers = [...mentionUsersById.values()]
   const mentionNicknames = [...new Set(mentionUsers.map((user) => user.nickname))]
+  const canModerateInline = moderatorAccess.isModerator && !moderatorAccess.isChecking
   const hasAnyLoadedMessages = messages.length > 0
   const currentAuthorUserId = socketState.authorUserId ?? undefined
   const shouldShowFeedSkeleton =
@@ -290,6 +305,106 @@ function ChatRoute() {
             if (ack.ok || ack.error === 'already_reported') {
               applyModerationUpdate({ messageId: m.id, moderationStatus: 'under_review' })
               modals.close(modalId)
+            }
+          }}
+        />
+      ),
+    })
+  }
+
+  const showModerationActionError = (error: unknown) => {
+    const message =
+      error instanceof ModerationApiError
+        ? getModerationActionErrorMessage(error.code)
+        : getModerationActionErrorMessage()
+    notifications.show({
+      color: 'red',
+      title: 'Moderation action failed',
+      message,
+    })
+  }
+
+  const openMute = (m: ChatMessage) => {
+    let modalId = ''
+    const setSubmittingState = (isSubmitting: boolean) => {
+      if (!modalId) return
+      modals.updateModal({
+        modalId,
+        closeOnClickOutside: !isSubmitting,
+        closeOnEscape: !isSubmitting,
+        withCloseButton: !isSubmitting,
+      })
+    }
+
+    modalId = modals.open({
+      title: 'Mute user',
+      closeOnClickOutside: true,
+      closeOnEscape: true,
+      withCloseButton: true,
+      children: (
+        <MuteUserModal
+          nickname={m.nickname}
+          resetAt={resetAt}
+          onSubmittingChange={setSubmittingState}
+          onCancel={() => modals.close(modalId)}
+          onSubmit={async ({ durationMinutes, reason }) => {
+            try {
+              await moderationActions.muteUser.mutateAsync({
+                id: m.authorUserId,
+                durationMinutes,
+                ...(reason !== undefined ? { reason } : {}),
+              })
+              notifications.show({
+                color: 'green',
+                title: 'User muted',
+                message: `${m.nickname} was muted for ${durationMinutes} minutes.`,
+              })
+              modals.close(modalId)
+            } catch (error) {
+              showModerationActionError(error)
+            }
+          }}
+        />
+      ),
+    })
+  }
+
+  const openBan = (m: ChatMessage) => {
+    let modalId = ''
+    const setSubmittingState = (isSubmitting: boolean) => {
+      if (!modalId) return
+      modals.updateModal({
+        modalId,
+        closeOnClickOutside: !isSubmitting,
+        closeOnEscape: !isSubmitting,
+        withCloseButton: !isSubmitting,
+      })
+    }
+
+    modalId = modals.open({
+      title: 'Ban user',
+      closeOnClickOutside: true,
+      closeOnEscape: true,
+      withCloseButton: true,
+      children: (
+        <BanUserModal
+          nickname={m.nickname}
+          onSubmittingChange={setSubmittingState}
+          onCancel={() => modals.close(modalId)}
+          onSubmit={async ({ reason }) => {
+            try {
+              await moderationActions.banUser.mutateAsync({
+                id: m.authorUserId,
+                ...(reason !== undefined ? { reason } : {}),
+              })
+              notifications.show({
+                color: 'green',
+                title: 'User banned',
+                message: `${m.nickname} was banned until the next reset.`,
+              })
+              modals.close(modalId)
+            } catch (error) {
+              showModerationActionError(error)
             }
           }}
         />
@@ -449,6 +564,7 @@ function ChatRoute() {
             currentPendingAuthorUserId={pendingOwnAuthorUserId}
             canReport={isAuthed && socketState.status === 'connected' && socketState.nickname !== null}
             canReply={isAuthed && socketState.status === 'connected'}
+            canModerate={isAuthed && socketState.status === 'connected' && canModerateInline}
             mentionNicknames={mentionNicknames}
             onReport={openReport}
             onReply={(message) => {
@@ -458,6 +574,8 @@ function ChatRoute() {
               const preview = { nickname: message.nickname, content: message.content }
               setReplyTarget({ id: message.id, preview })
             }}
+            onMute={openMute}
+            onBan={openBan}
             onLoadMore={() => history.fetchNextPage()}
             hasMore={!!history.hasNextPage}
             loadingMore={history.isFetchingNextPage}

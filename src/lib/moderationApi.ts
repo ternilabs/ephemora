@@ -1,4 +1,10 @@
-import type { BannedUser, ModerationAction, ModerationReport } from '../types/moderation'
+import type {
+  BannedUser,
+  ModerationAction,
+  ModerationActionErrorCode,
+  ModerationReport,
+  MuteUserResponse,
+} from '../types/moderation'
 import { supabase } from './supabase'
 
 const BASE = import.meta.env.VITE_REALTIME_URL as string | undefined
@@ -8,12 +14,14 @@ if (!BASE) throw new Error('Missing VITE_REALTIME_URL')
 export class ModerationApiError extends Error {
   status: number
   path: string
+  code?: ModerationActionErrorCode
 
-  constructor(status: number, path: string, details?: string) {
+  constructor(status: number, path: string, details?: string, code?: ModerationActionErrorCode) {
     super(details ? `Moderation API ${status}: ${path} (${details})` : `Moderation API ${status}: ${path}`)
     this.name = 'ModerationApiError'
     this.status = status
     this.path = path
+    this.code = code
   }
 }
 
@@ -28,6 +36,24 @@ function assertValidReportUserIds(reports: ModerationReport[]): ModerationReport
   })
 
   return reports
+}
+
+async function parseErrorResponse(res: Response): Promise<{ code?: ModerationActionErrorCode; details?: string }> {
+  try {
+    const payload = await res.json() as { code?: string; error?: string; message?: string }
+    const code = typeof payload.code === 'string' ? payload.code : undefined
+    const details = typeof payload.message === 'string'
+      ? payload.message
+      : typeof payload.error === 'string'
+        ? payload.error
+        : undefined
+    return {
+      ...(code ? { code: code as ModerationActionErrorCode } : {}),
+      ...(details ? { details } : {}),
+    }
+  } catch {
+    return {}
+  }
 }
 
 async function moderationFetch<T>(path: string, options?: RequestInit): Promise<T> {
@@ -50,7 +76,10 @@ async function moderationFetch<T>(path: string, options?: RequestInit): Promise<
     headers,
   })
 
-  if (!res.ok) throw new ModerationApiError(res.status, path)
+  if (!res.ok) {
+    const parsed = await parseErrorResponse(res)
+    throw new ModerationApiError(res.status, path, parsed.details, parsed.code)
+  }
 
   if (res.status === 204) {
     return {} as T
@@ -98,6 +127,11 @@ export const moderationApi = {
     moderationFetch(`/moderation/users/${id}/ban`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
+    }),
+  muteUser: (id: string, durationMinutes: number, reason?: string) =>
+    moderationFetch<MuteUserResponse>(`/moderation/users/${id}/mute`, {
+      method: 'POST',
+      body: JSON.stringify({ durationMinutes, reason }),
     }),
   unbanUser: async (supabaseUserId: string, fallbackRecordId?: string) => {
     try {

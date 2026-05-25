@@ -51,9 +51,12 @@ export default function MessageBubble(props: {
   isOwn: boolean
   canReport: boolean
   canReply: boolean
+  canModerate: boolean
   mentionNicknames: string[]
   onReport: () => void
   onReply: () => void
+  onMute: () => void
+  onBan: () => void
   onJumpToReplyTarget: () => void
 }) {
   const m = props.message
@@ -96,6 +99,26 @@ export default function MessageBubble(props: {
           >
             <Flag size={12} strokeWidth={1.75} />
           </UnstyledButton>
+        ) : null}
+        {props.canModerate && !props.isOwn ? (
+          <>
+            <UnstyledButton
+              className="ep3-msg-mute-action"
+              aria-label={`Mute ${m.nickname}`}
+              disabled={isPending}
+              onClick={props.onMute}
+            >
+              Mute
+            </UnstyledButton>
+            <UnstyledButton
+              className="ep3-msg-ban-action"
+              aria-label={`Ban ${m.nickname}`}
+              disabled={isPending}
+              onClick={props.onBan}
+            >
+              Ban
+            </UnstyledButton>
+          </>
         ) : null}
       </Group>
       {hasReplyPreview ? (

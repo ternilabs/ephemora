@@ -26,6 +26,11 @@ export function useModerationActions() {
         moderationApi.banUser(args.id, args.reason),
       onSuccess: invalidate,
     }),
+    muteUser: useMutation({
+      mutationFn: (args: { id: string; durationMinutes: number; reason?: string }) =>
+        moderationApi.muteUser(args.id, args.durationMinutes, args.reason),
+      onSuccess: invalidate,
+    }),
     unbanUser: useMutation({
       mutationFn: (args: { supabaseUserId: string; fallbackRecordId?: string }) =>
         moderationApi.unbanUser(args.supabaseUserId, args.fallbackRecordId),
