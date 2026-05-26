@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getModerationActionErrorMessage } from '@/routes/index'
+import { getModerationActionErrorMessage, shouldScheduleResetFallback } from '@/routes/index'
 
 describe('chat moderation action messaging', () => {
   it('renders deterministic notifications for known error codes', () => {
@@ -13,5 +13,11 @@ describe('chat moderation action messaging', () => {
     expect(getModerationActionErrorMessage()).toBe('Server error while applying moderation action.')
     expect(getModerationActionErrorMessage('internal_error')).toBe('Server error while applying moderation action.')
   })
-})
 
+  it('schedules reset fallback only while resetting and reset request is not started', () => {
+    expect(shouldScheduleResetFallback(true, false)).toBe(true)
+    expect(shouldScheduleResetFallback(false, false)).toBe(false)
+    expect(shouldScheduleResetFallback(true, true)).toBe(false)
+    expect(shouldScheduleResetFallback(false, true)).toBe(false)
+  })
+})

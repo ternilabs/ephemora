@@ -23,6 +23,7 @@ import type {
 
 export type SocketStatus = 'disconnected' | 'connecting' | 'connected' | 'waking' | 'unavailable' | 'blocked'
 type BlockedKind = 'muted' | 'banned' | null
+type RestrictionNoticeKind = Exclude<BlockedKind, null>
 
 interface UseSocketOptions {
   token: string
@@ -134,6 +135,7 @@ export function useSocket(options: UseSocketOptions) {
   const authorUserIdRef = useRef<string | null>(authorUserId)
   const lastUserIdRef = useRef(userId)
   const statusRef = useRef<SocketStatus>(status)
+  const lastRestrictionNoticeRef = useRef<{ kind: RestrictionNoticeKind; atMs: number } | null>(null)
 
   const socket: Socket | null = useMemo(() => {
     if (!enabled) return null
@@ -194,6 +196,15 @@ export function useSocket(options: UseSocketOptions) {
       clearTicker()
     }
   }, [cooldownUntilMs, muteUntilMs, userId])
+
+  useEffect(() => {
+    if (blockedKind !== 'muted') return
+    if (muteFallbackActive) return
+    if (muteUntilMs > nowMs) return
+
+    setBlockedKind(null)
+    setStatus('connected')
+  }, [blockedKind, muteFallbackActive, muteUntilMs, nowMs])
 
   useEffect(() => {
     if (!socket) return
@@ -275,6 +286,22 @@ export function useSocket(options: UseSocketOptions) {
       setBlockedKind(null)
     }
 
+    const showRestrictionNotification = (kind: RestrictionNoticeKind, message: string, color: 'red' | 'yellow') => {
+      const now = Date.now()
+      const last = lastRestrictionNoticeRef.current
+      if (last && last.kind === kind && now - last.atMs < 1_500) {
+        return
+      }
+
+      lastRestrictionNoticeRef.current = { kind, atMs: now }
+      notifications.show({
+        id: `restriction-${kind}`,
+        color,
+        title: kind === 'banned' ? 'Banned' : 'Muted',
+        message,
+      })
+    }
+
     const onDisconnect = () => {
       setStatus('disconnected')
       setPresenceCount(0)
@@ -284,22 +311,14 @@ export function useSocket(options: UseSocketOptions) {
     const onConnectError = (error: unknown) => {
       if (isBannedConnectError(error)) {
         syncBannedUserState()
-        notifications.show({
-          color: 'red',
-          title: 'Banned',
-          message: 'You are temporarily banned until the next reset.',
-        })
+        showRestrictionNotification('banned', 'You are temporarily banned until the next reset.', 'red')
         return
       }
 
       if (isMutedConnectError(error)) {
         const muteRemainingMs = getMutedConnectRemainingMs(error)
         syncMutedUserState(muteRemainingMs)
-        notifications.show({
-          color: 'yellow',
-          title: 'Muted',
-          message: getMutedNotificationMessage(muteRemainingMs),
-        })
+        showRestrictionNotification('muted', getMutedNotificationMessage(muteRemainingMs), 'yellow')
         return
       }
 
@@ -366,11 +385,7 @@ export function useSocket(options: UseSocketOptions) {
       markConnectedActivity()
       const muteRemainingMs = getMuteRemainingMs(payload)
       syncMutedUserState(muteRemainingMs)
-      notifications.show({
-        color: 'red',
-        title: 'Muted',
-        message: getMutedNotificationMessage(muteRemainingMs),
-      })
+      showRestrictionNotification('muted', getMutedNotificationMessage(muteRemainingMs), 'yellow')
     }
 
     const onUserModerated = (payload: UserModeratedPayload) => {
@@ -381,27 +396,33 @@ export function useSocket(options: UseSocketOptions) {
 
       if (!matchesCurrentUser) return
 
-      const untilMs = Date.parse(payload.until)
-      if (!Number.isFinite(untilMs)) return
-
-      const remainingMs = Math.max(0, untilMs - Date.now())
       const action = payload.action.toLowerCase()
-      if (action.includes('ban')) {
-        syncBannedUserState()
+      if (action.includes('unban')) {
+        setBlockedKind(null)
+        setMuteUntilMs(0)
+        setMuteFallbackActive(false)
+        writeCachedMuteUntil(userId, 0)
+        setStatus('connected')
         notifications.show({
-          color: 'red',
-          title: 'Banned',
-          message: 'You are temporarily banned until the next reset.',
+          color: 'green',
+          title: 'Unbanned',
+          message: 'You can chat again.',
         })
         return
       }
 
+      const untilMs = Date.parse(payload.until)
+      if (!Number.isFinite(untilMs)) return
+
+      const remainingMs = Math.max(0, untilMs - Date.now())
+      if (action.includes('ban')) {
+        syncBannedUserState()
+        showRestrictionNotification('banned', 'You are temporarily banned until the next reset.', 'red')
+        return
+      }
+
       syncMutedUserState(remainingMs)
-      notifications.show({
-        color: 'yellow',
-        title: 'Muted',
-        message: getMutedNotificationMessage(remainingMs),
-      })
+      showRestrictionNotification('muted', getMutedNotificationMessage(remainingMs), 'yellow')
     }
 
     const onSystemError = (payload: SystemErrorPayload) => {
@@ -410,22 +431,14 @@ export function useSocket(options: UseSocketOptions) {
       const code = payload.code.toLowerCase()
       if (code === 'banned' || code === 'auth:banned') {
         syncBannedUserState()
-        notifications.show({
-          color: 'red',
-          title: 'Banned',
-          message: 'You are temporarily banned until the next reset.',
-        })
+        showRestrictionNotification('banned', 'You are temporarily banned until the next reset.', 'red')
         return
       }
 
       if (code === 'muted' || code === 'auth:muted') {
         const muteRemainingMs = getMuteRemainingMs(payload)
         syncMutedUserState(muteRemainingMs)
-        notifications.show({
-          color: 'yellow',
-          title: 'Muted',
-          message: getMutedNotificationMessage(muteRemainingMs),
-        })
+        showRestrictionNotification('muted', getMutedNotificationMessage(muteRemainingMs), 'yellow')
         return
       }
 

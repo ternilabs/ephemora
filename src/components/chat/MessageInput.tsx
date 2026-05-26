@@ -36,12 +36,21 @@ export default function MessageInput(props: {
   const [activeMentionIndex, setActiveMentionIndex] = useState(0)
   const [mentionDismissed, setMentionDismissed] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const sendButtonRef = useRef<HTMLButtonElement | null>(null)
+  const wasCoolingDownRef = useRef(false)
   const mentionListboxId = useId()
 
   useEffect(() => {
     if (!props.replyTarget) return
     const textarea = textareaRef.current
     if (!textarea) return
+    const activeElement = document.activeElement
+    const allowAutoFocus =
+      activeElement === null ||
+      activeElement === document.body ||
+      activeElement === textarea ||
+      activeElement === sendButtonRef.current
+    if (!allowAutoFocus) return
 
     requestAnimationFrame(() => {
       textarea.focus()
@@ -76,6 +85,21 @@ export default function MessageInput(props: {
 
   const inputDisabled = !!props.sendDisabled || !!props.inputLocked || muted || coolingDown
   const disabled = inputDisabled || empty || overLimit
+
+  useEffect(() => {
+    const wasCoolingDown = wasCoolingDownRef.current
+    wasCoolingDownRef.current = coolingDown
+    if (!wasCoolingDown || coolingDown || inputDisabled) return
+
+    const textarea = textareaRef.current
+    if (!textarea) return
+
+    requestAnimationFrame(() => {
+      textarea.focus()
+      const nextCaret = textarea.value.length
+      textarea.setSelectionRange(nextCaret, nextCaret)
+    })
+  }, [coolingDown, inputDisabled])
 
   const mentionDraft = useMemo<MentionDraft | null>(() => {
     const caret = Math.max(0, Math.min(caretPosition, value.length))
@@ -229,6 +253,7 @@ export default function MessageInput(props: {
           </Box>
         ) : null}
         <UnstyledButton
+          ref={sendButtonRef}
           className="ep3-send-icon"
           aria-label="Send message"
           disabled={disabled}

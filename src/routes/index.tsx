@@ -85,19 +85,11 @@ function getConnectionBadgeState(status: SocketStatus): Exclude<SocketStatus, 'd
   return status === 'disconnected' ? 'offline' : status
 }
 
-function formatMutedCountdown(remainingMs: number): string {
-  const totalSeconds = Math.max(0, Math.ceil(remainingMs / 1000))
-  const minutes = Math.floor(totalSeconds / 60)
-  const seconds = totalSeconds % 60
-  if (minutes <= 0) return `${seconds}s`
-  return `${minutes}m ${String(seconds).padStart(2, '0')}s`
-}
-
-function getConnectionLabel(status: SocketStatus, blockedKind: 'muted' | 'banned' | null, muteRemainingMs: number): string {
+function getConnectionLabel(status: SocketStatus, blockedKind: 'muted' | 'banned' | null): string {
   if (status === 'connected') return 'Connected'
   if (status === 'blocked') {
     if (blockedKind === 'banned') return 'Banned'
-    if (blockedKind === 'muted') return muteRemainingMs > 0 ? `Muted ${formatMutedCountdown(muteRemainingMs)}` : 'Muted'
+    if (blockedKind === 'muted') return 'Muted'
     return 'Blocked'
   }
   if (status === 'connecting') return 'Connecting'
@@ -111,6 +103,10 @@ export function getModerationActionErrorMessage(code?: ModerationActionErrorCode
   if (code === 'not_found') return 'User is no longer available.'
   if (code === 'forbidden') return 'Moderator access is required for this action.'
   return 'Server error while applying moderation action.'
+}
+
+export function shouldScheduleResetFallback(isResetting: boolean, resetRequestStarted: boolean): boolean {
+  return isResetting && !resetRequestStarted
 }
 
 function ChatRoute() {
@@ -140,6 +136,7 @@ function ChatRoute() {
   const [hideHistoryMessages, setHideHistoryMessages] = useState(false)
   const [isResetting, setIsResetting] = useState(false)
   const resetRequestRef = useRef(0)
+  const resetRequestStartedRef = useRef(false)
   const [replyTarget, setReplyTarget] = useState<{ id: string; preview: ReplyPreview } | null>(null)
 
   const liveMessagesRef = useRef<ChatMessage[]>(liveMessages)
@@ -157,22 +154,42 @@ function ChatRoute() {
     }
   }, [removeMessageById])
 
-  const handleReset = useCallback(() => {
+  const beginResetLock = useCallback(() => {
+    resetRequestStartedRef.current = false
     setIsResetting(true)
-    clearMessages()
     setReplyTarget(null)
     setHideHistoryMessages(true)
+  }, [])
+
+  const handleReset = useCallback(() => {
+    beginResetLock()
+    resetRequestStartedRef.current = true
+    clearMessages()
     void queryClient.removeQueries({ queryKey: ['messages', 'history', historyLimit], exact: true })
     void bootstrap.refetch()
 
     const requestId = ++resetRequestRef.current
     void refetchHistory().finally(() => {
       if (resetRequestRef.current === requestId) {
+        resetRequestStartedRef.current = false
         setHideHistoryMessages(false)
         setIsResetting(false)
       }
     })
-  }, [bootstrap, clearMessages, historyLimit, queryClient, refetchHistory])
+  }, [beginResetLock, bootstrap, clearMessages, historyLimit, queryClient, refetchHistory])
+
+  useEffect(() => {
+    if (!shouldScheduleResetFallback(isResetting, resetRequestStartedRef.current)) return
+
+    const timer = window.setTimeout(() => {
+      if (!isResetting || resetRequestStartedRef.current) return
+      handleReset()
+    }, 8_000)
+
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [isResetting, handleReset])
 
   const socketState = useSocket({
     token,
@@ -187,11 +204,11 @@ function ChatRoute() {
   const presenceRoster = usePresenceRoster(socketState.socket)
   const report = useReportMessage(socketState.socket)
   const connectionState = getConnectionBadgeState(socketState.status)
-  const connectionLabel = getConnectionLabel(socketState.status, socketState.blockedKind, socketState.muteRemainingMs)
+  const connectionLabel = getConnectionLabel(socketState.status, socketState.blockedKind)
   const resetAt = bootstrap.data?.reset.resetAt
   const maxLen = bootstrap.data?.limits.messageMaxLength ?? 500
   const cooldownWindowMs = (bootstrap.data?.limits.messageCooldownSeconds ?? 5) * 1000
-  const { secondsRemaining } = useCountdown({ resetAt, onZero: handleReset })
+  const { secondsRemaining } = useCountdown({ resetAt, onZero: beginResetLock })
   const isIdentityLoading =
     isAuthed && (socketState.nickname === null || socketState.authorUserId === null)
   const isMobile = useMediaQuery('(max-width: 768px)')

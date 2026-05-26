@@ -1,5 +1,5 @@
 import { Group, Stack, Text, UnstyledButton } from '@mantine/core'
-import { CornerUpLeft, Flag } from 'lucide-react'
+import { Ban, CornerUpLeft, Flag, VolumeX } from 'lucide-react'
 import clsx from 'clsx'
 import { useMemo, type ReactNode } from 'react'
 import type { ChatMessage } from '../../types/chat'
@@ -103,20 +103,20 @@ export default function MessageBubble(props: {
         {props.canModerate && !props.isOwn ? (
           <>
             <UnstyledButton
-              className="ep3-msg-mute-action"
+              className="ep3-msg-report-icon"
               aria-label={`Mute ${m.nickname}`}
               disabled={isPending}
               onClick={props.onMute}
             >
-              Mute
+              <VolumeX size={12} strokeWidth={1.75} />
             </UnstyledButton>
             <UnstyledButton
-              className="ep3-msg-ban-action"
+              className="ep3-msg-report-icon"
               aria-label={`Ban ${m.nickname}`}
               disabled={isPending}
               onClick={props.onBan}
             >
-              Ban
+              <Ban size={12} strokeWidth={1.75} />
             </UnstyledButton>
           </>
         ) : null}

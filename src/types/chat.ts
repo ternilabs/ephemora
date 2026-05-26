@@ -69,7 +69,7 @@ export interface UserMutedPayload {
 
 export interface UserModeratedPayload {
   userId: string
-  action: 'muted' | 'banned'
+  action: 'ban_user' | 'mute_user' | 'unban_user' | 'banned' | 'muted' | 'unbanned'
   until: string
 }
 
