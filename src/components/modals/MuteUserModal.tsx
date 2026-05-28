@@ -52,9 +52,10 @@ export default function MuteUserModal(props: {
     setSubmitting(true)
     props.onSubmittingChange?.(true)
     try {
+      const normalizedReason = reason.trim()
       await props.onSubmit({
         durationMinutes: latestEffectiveDurationMinutes,
-        reason: reason.trim() || undefined,
+        ...(normalizedReason ? { reason: normalizedReason } : {}),
       })
     } finally {
       setSubmitting(false)

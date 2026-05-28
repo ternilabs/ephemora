@@ -361,7 +361,7 @@ function ChatRoute() {
       children: (
         <MuteUserModal
           nickname={m.nickname}
-          resetAt={resetAt}
+          {...(resetAt !== undefined ? { resetAt } : {})}
           onSubmittingChange={setSubmittingState}
           onCancel={() => modals.close(modalId)}
           onSubmit={async ({ durationMinutes, reason }) => {

@@ -15,7 +15,8 @@ export default function BanUserModal(props: {
     setSubmitting(true)
     props.onSubmittingChange?.(true)
     try {
-      await props.onSubmit({ reason: reason.trim() || undefined })
+      const normalizedReason = reason.trim()
+      await props.onSubmit(normalizedReason ? { reason: normalizedReason } : {})
     } finally {
       setSubmitting(false)
       props.onSubmittingChange?.(false)

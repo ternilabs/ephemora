@@ -21,7 +21,9 @@ export class ModerationApiError extends Error {
     this.name = 'ModerationApiError'
     this.status = status
     this.path = path
-    this.code = code
+    if (code !== undefined) {
+      this.code = code
+    }
   }
 }
 
